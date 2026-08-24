@@ -93,4 +93,3 @@ dist-ssr
 mongo_data
 redis_data
 
-/backend/uploads
