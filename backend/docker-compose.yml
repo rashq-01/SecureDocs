@@ -1,0 +1,54 @@
+version: '3.8'
+
+services:
+  mongodb:
+    image: mongo:7
+    container_name: securedocs-mongo
+    ports:
+      - "27017:27017"
+    environment:
+      MONGO_INITDB_DATABASE: securedocs
+    volumes:
+      - mongo_data:/data/db
+    networks:
+      - securedocs-network
+
+  redis:
+    image: redis:7-alpine
+    container_name: securedocs-redis
+    ports:
+      - "6379:6379"
+    volumes:
+      - redis_data:/data
+    networks:
+      - securedocs-network
+
+  backend:
+    build: .
+    container_name: securedocs-backend
+    ports:
+      - "5000:5000"
+    environment:
+      NODE_ENV: development
+      MONGO_URI: mongodb://mongodb:27017/securedocs
+      REDIS_URL: redis://redis:6379
+      JWT_ACCESS_SECRET: dev_access_secret_change_me
+      JWT_REFRESH_SECRET: dev_refresh_secret_change_me
+      FRONTEND_ORIGIN: http://localhost:5173
+    volumes:
+      - ./uploads:/app/uploads
+    depends_on:
+      - mongodb
+      - redis
+    networks:
+      - securedocs-network
+
+  # Frontend can be added separately or served via nginx
+
+networks:
+  securedocs-network:
+    driver: bridge
+
+volumes:
+  mongo_data:
+  redis_data:
