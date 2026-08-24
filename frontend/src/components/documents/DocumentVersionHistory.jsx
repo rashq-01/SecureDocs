@@ -2,13 +2,16 @@ import React, { useState, useEffect } from 'react';
 import { useAuth } from '../../hooks/useAuth';
 import * as documentApi from '../../services/document.api';
 import { formatDate, formatFileSize } from '../../utils/helpers';
-import { Download, FileText, RefreshCw, Clock } from 'lucide-react';
+import { Download, FileText, RefreshCw, Clock, Upload } from 'lucide-react';
 import toast from 'react-hot-toast';
 
-const DocumentVersionHistory = ({ documentId }) => {
+const DocumentVersionHistory = ({ documentId, onVersionCreated }) => {
   const { user } = useAuth();
   const [versions, setVersions] = useState([]);
   const [loading, setLoading] = useState(true);
+  const [isUploading, setIsUploading] = useState(false);
+  const [changelog, setChangelog] = useState('');
+  const [selectedFile, setSelectedFile] = useState(null);
 
   useEffect(() => {
     fetchVersions();
@@ -55,17 +58,32 @@ const DocumentVersionHistory = ({ documentId }) => {
     }
   };
 
+  const handleUploadVersion = async (e) => {
+    e.preventDefault();
+    if (!selectedFile) return;
+    
+    setIsUploading(true);
+    const formData = new FormData();
+    formData.append('file', selectedFile);
+    if (changelog) formData.append('changelog', changelog);
+
+    try {
+      await documentApi.createVersion(documentId, formData);
+      toast.success('New version uploaded successfully!');
+      setSelectedFile(null);
+      setChangelog('');
+      fetchVersions();
+      if (onVersionCreated) onVersionCreated();
+    } catch (error) {
+      console.error('Failed to upload version:', error);
+      toast.error(error.response?.data?.error?.message || 'Failed to upload new version');
+    } finally {
+      setIsUploading(false);
+    }
+  };
+
   if (loading) {
     return <div className="text-sm text-text-secondary">Loading versions...</div>;
-  }
-
-  if (versions.length === 0) {
-    return (
-      <div className="card text-center py-8">
-        <FileText size={32} className="mx-auto text-text-tertiary mb-2" />
-        <p className="text-text-secondary">No versions available</p>
-      </div>
-    );
   }
 
   return (
@@ -77,7 +95,46 @@ const DocumentVersionHistory = ({ documentId }) => {
         </button>
       </div>
 
-      <div className="space-y-3">
+      {(user.role === 'Admin' || user.role === 'IO') && (
+        <form onSubmit={handleUploadVersion} className="mb-6 bg-bg-secondary p-4 rounded border border-border">
+          <h4 className="text-sm font-medium mb-3">Upload New Version</h4>
+          <div className="space-y-3">
+            <div>
+              <input
+                type="file"
+                onChange={(e) => setSelectedFile(e.target.files[0])}
+                className="w-full text-sm text-text-secondary file:mr-4 file:py-2 file:px-4 file:rounded file:border-0 file:text-sm file:font-semibold file:bg-accent-subtle file:text-accent hover:file:bg-accent hover:file:text-white transition-colors"
+                accept=".pdf,.doc,.docx,.txt"
+              />
+            </div>
+            <div>
+              <input
+                type="text"
+                placeholder="Changelog (e.g. 'Updated section 3 to include new forensic evidence')"
+                value={changelog}
+                onChange={(e) => setChangelog(e.target.value)}
+                className="input-field text-sm"
+              />
+            </div>
+            <button
+              type="submit"
+              disabled={!selectedFile || isUploading}
+              className="bg-accent text-white px-3 py-2 rounded text-sm font-medium hover:bg-accent-hover transition-colors disabled:opacity-50 flex items-center gap-2"
+            >
+              <Upload size={14} />
+              {isUploading ? 'Uploading...' : 'Upload Version'}
+            </button>
+          </div>
+        </form>
+      )}
+
+      {versions.length === 0 ? (
+        <div className="card text-center py-8">
+          <FileText size={32} className="mx-auto text-text-tertiary mb-2" />
+          <p className="text-text-secondary">No versions available</p>
+        </div>
+      ) : (
+        <div className="space-y-3">
         {versions.map((version, index) => (
           <div key={version._id} className="flex items-center justify-between p-3 bg-bg-secondary rounded">
             <div className="flex items-center gap-3">
@@ -113,7 +170,8 @@ const DocumentVersionHistory = ({ documentId }) => {
             </button>
           </div>
         ))}
-      </div>
+        </div>
+      )}
     </div>
   );
 };
