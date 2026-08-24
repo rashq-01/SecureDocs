@@ -3,7 +3,7 @@ const Document = require('../models/Document.model');
 const User = require('../models/User.model');
 const { grantPermission } = require('./permission.service');
 const { writeAuditLog } = require('./audit.service');
-const { redisClient } = require('../config/redis');
+const { getRedisClient } = require('../config/redis');
 const crypto = require('crypto');
 const logger = require('../utils/logger');
 
@@ -46,17 +46,20 @@ const createShare = async (documentId, sharedBy, sharedWith, permission, options
     await grantPermission(documentId, sharedWith, permission, sharedBy);
 
     const ttlSeconds = expiresInHours * 60 * 60;
-    await redisClient.setEx(
-      `share:${shareToken}`,
-      ttlSeconds,
-      JSON.stringify({
-        shareId: share._id.toString(),
-        documentId: documentId.toString(),
-        sharedWith: sharedWith.toString(),
-        permission,
-        expiresAt: expiresAt.toISOString(),
-      })
-    );
+    const redis = getRedisClient();
+    if (redis) {
+      await redis.setEx(
+        `share:${shareToken}`,
+        ttlSeconds,
+        JSON.stringify({
+          shareId: share._id.toString(),
+          documentId: documentId.toString(),
+          sharedWith: sharedWith.toString(),
+          permission,
+          expiresAt: expiresAt.toISOString(),
+        })
+      );
+    }
 
     await writeAuditLog({
       actorId: sharedBy,
@@ -99,7 +102,8 @@ const getShareByToken = async (shareToken) => {
  */
 const validateShareToken = async (shareToken) => {
   try {
-    const cached = await redisClient.get(`share:${shareToken}`);
+    const redis = getRedisClient();
+    const cached = redis ? await redis.get(`share:${shareToken}`) : null;
     let share;
 
     if (cached) {
@@ -154,8 +158,9 @@ const accessShare = async (shareToken, userId) => {
       0,
       Math.floor((new Date(share.expiresAt) - new Date()) / 1000)
     );
-    if (ttlSeconds > 0) {
-      await redisClient.setEx(
+    const redis = getRedisClient();
+    if (ttlSeconds > 0 && redis) {
+      await redis.setEx(
         `share:${shareToken}`,
         ttlSeconds,
         JSON.stringify({
@@ -202,7 +207,10 @@ const revokeShare = async (shareToken, actorId) => {
     share.revokedBy = actorId;
     await share.save();
 
-    await redisClient.del(`share:${shareToken}`);
+    const redis = getRedisClient();
+    if (redis) {
+      await redis.del(`share:${shareToken}`);
+    }
 
     await writeAuditLog({
       actorId,
@@ -262,10 +270,13 @@ const cleanupExpiredShares = async () => {
       status: 'Active',
     });
 
+    const redis = getRedisClient();
     for (const share of expiredShares) {
       share.status = 'Expired';
       await share.save();
-      await redisClient.del(`share:${share.shareToken}`);
+      if (redis) {
+        await redis.del(`share:${share.shareToken}`);
+      }
     }
 
     logger.info(`Cleaned up ${expiredShares.length} expired shares`);

@@ -52,15 +52,60 @@ const uploadDocument = async (req, res, next) => {
     }
 
     // Read file and generate hash
-    const fileBuffer = fs.readFileSync(file.path);
+    let fileBuffer = fs.readFileSync(file.path);
+
+    // ---------------------------------------------------------
+    // Malware & Virus Scanning (Simulated ClamAV Integration)
+    // ---------------------------------------------------------
+    const scanForMalware = (buffer) => {
+      // In production, this would pipe the buffer to ClamAV/clamscan
+      // For demonstration, we check for a specific EICAR test string signature
+      const eicarSignature = 'X5O!P%@AP[4\\PZX54(P^)7CC)7}$EICAR-STANDARD-ANTIVIRUS-TEST-FILE!$H+H*';
+      if (buffer.toString().includes(eicarSignature)) {
+        return { isInfected: true, virusName: 'EICAR-Test-Signature' };
+      }
+      return { isInfected: false };
+    };
+
+    const scanResult = scanForMalware(fileBuffer);
+    if (scanResult.isInfected) {
+      // Clean up temp file
+      fs.unlinkSync(file.path);
+      
+      // Log severe security alert
+      await writeAuditLog({
+        actorId: req.user._id,
+        action: 'MalwareDetected',
+        targetCaseId: caseId,
+        ipAddress: req.ip,
+        userAgent: req.headers['user-agent'],
+        result: 'Failure',
+        metadata: { fileName: file.originalname, threat: scanResult.virusName },
+      });
+
+      return res.status(403).json(errorResponse(
+        ErrorCodes.VALIDATION_ERROR,
+        `SECURITY ALERT: Malware detected (${scanResult.virusName}). Upload rejected.`,
+        403
+      ));
+    }
+
+    // Encrypt at rest
+    const { encryptBuffer } = require('../services/encryption.service');
+    fileBuffer = encryptBuffer(fileBuffer);
+
+    // Generate hash of the encrypted buffer for tamper detection
     const fileHash = generateHash(fileBuffer);
 
     // Generate hash-based filename for storage
     const hashFilename = generateHashFilename(fileBuffer, file.originalname);
     const newFilePath = path.join(config.uploadDir, hashFilename);
 
-    // Rename file to hash-based name
-    fs.renameSync(file.path, newFilePath);
+    // Save ENCRYPTED buffer to the new file path
+    fs.writeFileSync(newFilePath, fileBuffer);
+
+    // Clean up temp file
+    fs.unlinkSync(file.path);
 
     // Create document record
     const document = new Document({
@@ -146,9 +191,18 @@ const getDocuments = async (req, res, next) => {
  */
 const getDocument = async (req, res, next) => {
   try {
-    const document = req.document || await Document.findById(req.params.id)
-      .populate('caseId', 'caseId title department')
-      .populate('uploadedBy', 'name email');
+    let document = req.document;
+    
+    if (document) {
+      await document.populate([
+        { path: 'caseId', select: 'caseId title department' },
+        { path: 'uploadedBy', select: 'name email' }
+      ]);
+    } else {
+      document = await Document.findById(req.params.id)
+        .populate('caseId', 'caseId title department')
+        .populate('uploadedBy', 'name email');
+    }
 
     if (!document) {
       return res.status(404).json(errorResponse(
@@ -239,6 +293,7 @@ const downloadDocument = async (req, res, next) => {
           expectedHash: document.fileHash,
           actualHash,
           fileName: document.originalFileName,
+          severity: 'CRITICAL'
         },
       });
 
@@ -269,8 +324,47 @@ const downloadDocument = async (req, res, next) => {
       { documentId: document._id }
     );
 
-    // Send file
-    res.download(document.filePath, document.originalFileName);
+    // Decrypt file
+    const { decryptFileToBuffer } = require('../services/encryption.service');
+    let decryptedBuffer;
+    try {
+      decryptedBuffer = decryptFileToBuffer(document.filePath);
+    } catch (err) {
+      logger.error('Failed to decrypt document: ' + err.message);
+      return res.status(500).json(errorResponse(ErrorCodes.SERVER_ERROR, 'Failed to decrypt document', 500));
+    }
+
+    // Dynamic Watermarking for PDFs
+    if (document.originalFileName.toLowerCase().endsWith('.pdf')) {
+      try {
+        const { PDFDocument, rgb, degrees } = require('pdf-lib');
+        const pdfDoc = await PDFDocument.load(decryptedBuffer);
+        const pages = pdfDoc.getPages();
+        const watermarkText = `CONFIDENTIAL - Downloaded by ${req.user.email} on ${new Date().toISOString().split('T')[0]}. IP: ${req.ip}`;
+        
+        pages.forEach((page) => {
+          const { width, height } = page.getSize();
+          page.drawText(watermarkText, {
+            x: width / 2 - 250,
+            y: height / 2,
+            size: 14,
+            color: rgb(0.9, 0.1, 0.1),
+            opacity: 0.4,
+            rotate: degrees(45),
+          });
+        });
+        
+        decryptedBuffer = await pdfDoc.save();
+      } catch (watermarkErr) {
+        logger.error('Watermarking failed, sending unwatermarked copy: ' + watermarkErr.message);
+        // Fallback to original decrypted buffer if watermarking fails
+      }
+    }
+
+    // Send file buffer directly
+    res.setHeader('Content-Disposition', `attachment; filename="${document.originalFileName}"`);
+    res.setHeader('Content-Type', document.originalFileName.toLowerCase().endsWith('.pdf') ? 'application/pdf' : 'application/octet-stream');
+    res.send(Buffer.from(decryptedBuffer));
   } catch (error) {
     next(error);
   }

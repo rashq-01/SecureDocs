@@ -91,3 +91,7 @@ export const revokeShare = (token) => {
 export const validateShare = (token) => {
   return api.get(`/shares/validate/${token}`);
 };
+
+export const accessShare = (token) => {
+  return api.get(`/shares/access/${token}`);
+};

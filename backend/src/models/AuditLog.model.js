@@ -67,7 +67,7 @@ const auditLogSchema = new mongoose.Schema({
   },
   result: {
     type: String,
-    enum: ['Success', 'Failure'],
+    enum: ['Success', 'Failure', 'Warning'],
     required: true,
   },
   metadata: {

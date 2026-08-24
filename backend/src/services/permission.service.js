@@ -94,7 +94,7 @@ const grantPermission = async (documentId, userId, permission, grantedBy) => {
     // Log the permission grant
     await writeAuditLog({
       actorId: grantedBy,
-      action: 'PermissionChange',
+      action: 'PermissionGranted',
       targetDocumentId: documentId,
       result: 'Success',
       metadata: {
@@ -142,7 +142,7 @@ const revokePermission = async (documentId, userId, permission, revokedBy) => {
     // Log the permission revocation
     await writeAuditLog({
       actorId: revokedBy,
-      action: 'PermissionChange',
+      action: 'PermissionRevoked',
       targetDocumentId: documentId,
       result: 'Success',
       metadata: {

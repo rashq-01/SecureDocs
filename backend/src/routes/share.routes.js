@@ -36,15 +36,6 @@ router.post(
   createShareLink
 );
 
-// Get share details
-router.get('/:token', verifyJWT, getShare);
-
-// Access share (requires authentication)
-router.get('/access/:token', verifyJWT, accessShareLink);
-
-// Revoke share
-router.delete('/:token/revoke', verifyJWT, revokeShareLink);
-
 // Get user's received shares
 router.get('/me', verifyJWT, getMyShares);
 
@@ -53,5 +44,14 @@ router.get('/created-by-me', verifyJWT, getSharesCreatedByMe);
 
 // Validate share token (public)
 router.get('/validate/:token', validateShare);
+
+// Get share details
+router.get('/:token', verifyJWT, getShare);
+
+// Access share (requires authentication)
+router.get('/access/:token', verifyJWT, accessShareLink);
+
+// Revoke share
+router.delete('/:token/revoke', verifyJWT, revokeShareLink);
 
 module.exports = router;

@@ -15,6 +15,7 @@ import CaseDetailPage from './pages/CaseDetailPage';
 import AuditLogs from './pages/AuditLogs';
 import Security from './pages/Security';
 import Settings from './pages/Settings';
+import ShareAccess from './pages/ShareAccess';
 
 const queryClient = new QueryClient({
   defaultOptions: {
@@ -54,6 +55,7 @@ function App() {
                   <Route path="/dashboard" element={<Dashboard />} />
                   <Route path="/documents" element={<Documents />} />
                   <Route path="/documents/:id" element={<DocumentDetailPage />} />
+                  <Route path="/share/:token" element={<ShareAccess />} />
                   <Route path="/cases" element={<Cases />} />
                   <Route path="/cases/:id" element={<CaseDetailPage />} />
                   <Route path="/audit-logs" element={<AuditLogs />} />

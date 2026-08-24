@@ -3,7 +3,8 @@ const router = express.Router();
 const { 
   getAuditLogs, 
   verifyIntegrity, 
-  getSecurityEventsEndpoint 
+  getSecurityEventsEndpoint,
+  exportAuditLogs 
 } = require('../controllers/audit.controller');
 const verifyJWT = require('../middlewares/verifyJWT.middleware');
 const { rbacCheck, requireRole } = require('../middlewares/rbac.middleware');
@@ -24,6 +25,14 @@ router.get(
   requireRole(['Admin']),
   sensitiveApiRateLimiter,
   verifyIntegrity
+);
+
+// Export compliance report
+router.get(
+  '/export',
+  verifyJWT,
+  rbacCheck('viewAudit'),
+  exportAuditLogs
 );
 
 // Get security events (Admin only)

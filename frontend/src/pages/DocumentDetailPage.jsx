@@ -38,10 +38,47 @@ const DocumentDetailPage = () => {
 
   const handleDownload = async () => {
     try {
-      await documentApi.downloadDocument(id);
+      const response = await documentApi.downloadDocument(id);
+      
+      // Create a blob from the response data
+      const blob = new Blob([response.data]);
+      
+      // Extract filename from Content-Disposition header if possible
+      let filename = document?.originalFileName || 'document.pdf';
+      const disposition = response.headers['content-disposition'];
+      if (disposition && disposition.indexOf('filename=') !== -1) {
+        const matches = /filename="([^"]+)"/.exec(disposition);
+        if (matches != null && matches[1]) {
+          filename = matches[1];
+        }
+      }
+
+      // Create a temporary link element to trigger the download
+      const url = window.URL.createObjectURL(blob);
+      const link = window.document.createElement('a');
+      link.href = url;
+      link.setAttribute('download', filename);
+      window.document.body.appendChild(link);
+      link.click();
+      
+      // Clean up
+      link.remove();
+      window.URL.revokeObjectURL(url);
+      
       toast.success('Download started');
     } catch (error) {
       toast.error('Failed to download document');
+    }
+  };
+
+  const handleStatusChange = async (newStatus) => {
+    try {
+      await documentApi.updateDocumentStatus(id, newStatus);
+      toast.success(`Document status updated to ${newStatus}`);
+      fetchDocument();
+    } catch (error) {
+      console.error('Failed to update status:', error);
+      toast.error(error.response?.data?.error?.message || 'Failed to update document status');
     }
   };
 
@@ -110,7 +147,11 @@ const DocumentDetailPage = () => {
 
       <div>
         {activeTab === 'details' && (
-          <DocumentDetail document={document} onDownload={handleDownload} />
+          <DocumentDetail 
+            document={document} 
+            onDownload={handleDownload} 
+            onStatusChange={handleStatusChange}
+          />
         )}
         {activeTab === 'versions' && (
           <DocumentVersionHistory documentId={document._id} />

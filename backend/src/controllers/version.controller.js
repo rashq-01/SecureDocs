@@ -87,6 +87,7 @@ const downloadVersion = async (req, res, next) => {
           version: versionNumber,
           expectedHash: version.fileHash,
           actualHash,
+          severity: 'CRITICAL'
         },
       });
       

@@ -1,4 +1,5 @@
 const { queryAuditLogs, verifyAuditIntegrity, getSecurityEvents } = require('../services/audit.service');
+const { generateCSV, generatePDF } = require('../services/export.service');
 const { successResponse, errorResponse, ErrorCodes } = require('../utils/apiResponse');
 
 /**
@@ -85,8 +86,75 @@ const getSecurityEventsEndpoint = async (req, res, next) => {
   }
 };
 
+/**
+ * Export audit logs (Compliance Report)
+ * GET /api/v1/audit-logs/export
+ */
+const exportAuditLogs = async (req, res, next) => {
+  try {
+    const {
+      format = 'pdf',
+      actorId,
+      action,
+      documentId,
+      caseId,
+      startDate,
+      endDate,
+      result,
+    } = req.query;
+
+    const filters = {
+      actorId,
+      action,
+      targetDocumentId: documentId,
+      targetCaseId: caseId,
+      startDate,
+      endDate,
+      result,
+    };
+
+    // Get ALL logs matching filter for export (no pagination)
+    const options = {
+      limit: 10000,
+      skip: 0,
+      sortBy: 'timestamp',
+      sortOrder: 'desc',
+    };
+
+    const resultData = await queryAuditLogs(filters, options);
+    const logs = resultData.logs;
+
+    let buffer;
+    let contentType;
+    let extension;
+
+    // Build human-readable filters object for PDF header
+    const readableFilters = {};
+    if (action) readableFilters.action = action;
+    if (caseId) readableFilters.caseId = caseId;
+    if (startDate || endDate) readableFilters.dateRange = `${startDate || 'Start'} to ${endDate || 'Now'}`;
+
+    if (format === 'csv') {
+      buffer = generateCSV(logs);
+      contentType = 'text/csv';
+      extension = 'csv';
+    } else {
+      buffer = await generatePDF(logs, req.user, readableFilters);
+      contentType = 'application/pdf';
+      extension = 'pdf';
+    }
+
+    res.setHeader('Content-Type', contentType);
+    res.setHeader('Content-Disposition', `attachment; filename=Compliance_Report_${new Date().toISOString().split('T')[0]}.${extension}`);
+    res.send(buffer);
+  } catch (error) {
+    next(error);
+  }
+};
+
 module.exports = {
   getAuditLogs,
   verifyIntegrity,
   getSecurityEventsEndpoint,
+  exportAuditLogs,
 };

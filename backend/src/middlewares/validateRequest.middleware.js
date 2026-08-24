@@ -14,6 +14,8 @@ const validateRequest = (req, res, next) => {
       message: err.msg,
     }));
     
+    console.error('VALIDATION FAILED:', errorMessages);
+    
     return res.status(400).json(errorResponse(
       ErrorCodes.VALIDATION_ERROR,
       'Validation failed',

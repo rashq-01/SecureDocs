@@ -72,9 +72,9 @@ const DocumentShare = ({ documentId, document }) => {
       fetchData();
       
       // Copy share link to clipboard
-      const shareLink = response.data.data.shareLink;
-      if (shareLink) {
-        await navigator.clipboard.writeText(`${window.location.origin}${shareLink}`);
+      const shareToken = response.data.data.share.shareToken;
+      if (shareToken) {
+        await navigator.clipboard.writeText(`${window.location.origin}/share/${shareToken}`);
         toast.success('Share link copied to clipboard');
       }
     } catch (error) {
@@ -97,7 +97,7 @@ const DocumentShare = ({ documentId, document }) => {
   };
 
   const handleCopyLink = (token) => {
-    const link = `${window.location.origin}/api/v1/shares/access/${token}`;
+    const link = `${window.location.origin}/share/${token}`;
     navigator.clipboard.writeText(link);
     setCopied(true);
     setTimeout(() => setCopied(false), 2000);

@@ -6,7 +6,7 @@ import { formatDate, formatFileSize } from '../../utils/helpers';
 import { Download, RefreshCw, Check, X } from 'lucide-react';
 import toast from 'react-hot-toast';
 
-const DocumentDetail = ({ document, onDownload }) => {
+const DocumentDetail = ({ document, onDownload, onStatusChange }) => {
   const { user } = useAuth();
 
   const handleDownload = () => {
@@ -98,16 +98,25 @@ const DocumentDetail = ({ document, onDownload }) => {
           <p className="text-sm font-medium mb-3">Update Status</p>
           <div className="flex gap-3">
             {document.status === 'Draft' && (
-              <button className="btn-primary flex items-center gap-2">
+              <button 
+                onClick={() => onStatusChange('UnderReview')}
+                className="btn-primary flex items-center gap-2"
+              >
                 <RefreshCw size={16} /> Submit for Review
               </button>
             )}
             {document.status === 'UnderReview' && (
               <>
-                <button className="bg-status-success text-white px-4 py-2 rounded text-sm font-medium hover:bg-green-700 flex items-center gap-2">
+                <button 
+                  onClick={() => onStatusChange('Approved')}
+                  className="bg-status-success text-white px-4 py-2 rounded text-sm font-medium hover:bg-green-700 flex items-center gap-2"
+                >
                   <Check size={16} /> Approve
                 </button>
-                <button className="bg-status-danger text-white px-4 py-2 rounded text-sm font-medium hover:bg-red-700 flex items-center gap-2">
+                <button 
+                  onClick={() => onStatusChange('Rejected')}
+                  className="bg-status-danger text-white px-4 py-2 rounded text-sm font-medium hover:bg-red-700 flex items-center gap-2"
+                >
                   <X size={16} /> Reject
                 </button>
               </>

@@ -75,10 +75,10 @@ const documentSchema = new mongoose.Schema({
   },
   permissions: {
     type: Map,
-    of: {
+    of: [{
       type: String,
       enum: ['VIEW', 'DOWNLOAD', 'SHARE', 'EDIT', 'DELETE'],
-    },
+    }],
     default: {},
   },
   deletedAt: {

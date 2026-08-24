@@ -32,6 +32,37 @@ const AuditLogTable = () => {
     }
   };
 
+  const handleExport = async (format) => {
+    try {
+      const toastId = toast.loading(`Generating ${format.toUpperCase()} report...`);
+      const response = await auditApi.exportAuditLogs({ ...filters, format });
+      
+      const blob = new Blob([response.data]);
+      let filename = `Compliance_Report_${new Date().toISOString().split('T')[0]}.${format}`;
+      
+      const disposition = response.headers['content-disposition'];
+      if (disposition && disposition.indexOf('filename=') !== -1) {
+        const matches = /filename=([^;]+)/.exec(disposition);
+        if (matches != null && matches[1]) filename = matches[1].replace(/['"]/g, '');
+      }
+
+      const url = window.URL.createObjectURL(blob);
+      const link = window.document.createElement('a');
+      link.href = url;
+      link.setAttribute('download', filename);
+      document.body.appendChild(link);
+      link.click();
+      
+      document.body.removeChild(link);
+      window.URL.revokeObjectURL(url);
+      
+      toast.success('Report downloaded successfully', { id: toastId });
+    } catch (error) {
+      console.error('Export failed:', error);
+      toast.error('Failed to export report');
+    }
+  };
+
   const getActionColor = (action) => {
     const colors = {
       Upload: 'text-status-info',
@@ -103,6 +134,18 @@ const AuditLogTable = () => {
         </select>
         <button onClick={fetchLogs} className="btn-secondary flex items-center gap-2">
           <RefreshCw size={14} /> Refresh
+        </button>
+        <button 
+          onClick={() => handleExport('pdf')} 
+          className="bg-accent text-white px-3 py-2 rounded text-sm font-medium hover:bg-accent-hover transition-colors flex items-center gap-2 ml-auto"
+        >
+          Export PDF
+        </button>
+        <button 
+          onClick={() => handleExport('csv')} 
+          className="bg-bg-tertiary text-text-primary px-3 py-2 rounded text-sm font-medium hover:bg-border transition-colors flex items-center gap-2"
+        >
+          Export CSV
         </button>
       </div>
 

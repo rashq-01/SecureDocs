@@ -133,7 +133,9 @@ const DocumentPermissions = ({ documentId }) => {
         ) : (
           <div className="space-y-3">
             {Object.entries(permissions).map(([userId, perms]) => {
-              const userData = users.find(u => u._id === userId);
+              const userData = users.find(u => u._id === userId) || perms.user;
+              const permissionsArray = Array.isArray(perms) ? perms : (perms.permissions || []);
+              
               return (
                 <div key={userId} className="flex items-center justify-between p-3 bg-bg-secondary rounded">
                   <div>
@@ -146,14 +148,14 @@ const DocumentPermissions = ({ documentId }) => {
                   </div>
                   <div className="flex items-center gap-3">
                     <div className="flex gap-1">
-                      {perms.map((perm) => (
+                      {permissionsArray.map((perm) => (
                         <span key={perm} className={`badge ${getPermissionColor(perm)}`}>
                           {perm}
                         </span>
                       ))}
                     </div>
                     <button
-                      onClick={() => handleRevokePermission(userId, perms[0])}
+                      onClick={() => handleRevokePermission(userId, permissionsArray[0])}
                       className="text-text-tertiary hover:text-status-danger transition-colors"
                       title="Revoke all permissions"
                     >

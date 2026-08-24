@@ -23,6 +23,39 @@ export const AuthProvider = ({ children }) => {
     setLoading(false);
   }, []);
 
+  // Idle Session Auto-Logout (15 minutes)
+  useEffect(() => {
+    if (!user) return; // Only track when logged in
+
+    const IDLE_TIMEOUT_MS = 15 * 60 * 1000;
+    let idleTimer;
+
+    const resetIdleTimer = () => {
+      if (idleTimer) clearTimeout(idleTimer);
+      idleTimer = setTimeout(() => {
+        logout();
+        toast.error('Session expired due to inactivity. Please log in again.');
+      }, IDLE_TIMEOUT_MS);
+    };
+
+    // Events to track activity
+    const activityEvents = ['mousemove', 'keydown', 'mousedown', 'touchstart'];
+
+    const handleActivity = () => {
+      resetIdleTimer();
+    };
+
+    activityEvents.forEach(event => window.addEventListener(event, handleActivity));
+    
+    // Initialize timer
+    resetIdleTimer();
+
+    return () => {
+      if (idleTimer) clearTimeout(idleTimer);
+      activityEvents.forEach(event => window.removeEventListener(event, handleActivity));
+    };
+  }, [user]);
+
   const login = async (email, password) => {
     try {
       const response = await authApi.login(email, password);

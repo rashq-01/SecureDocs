@@ -37,7 +37,8 @@ const rbacCheck = (action, options = {}) => {
           metadata: { 
             action: action,
             role: user.role,
-            reason: 'Insufficient permissions'
+            reason: 'Insufficient permissions',
+            severity: 'HIGH'
           },
         }).catch(() => {});
 
@@ -62,37 +63,43 @@ const rbacCheck = (action, options = {}) => {
           ));
         }
 
-        // Check if user can access this specific document
+        // Check if user has explicitly been granted access via document permissions
+        const explicitPermissions = document.permissions?.get(user._id.toString()) || [];
+        const requiredAction = action.toUpperCase();
+        
         let canAccess = false;
-
-        switch (user.role) {
-          case 'Admin':
-            canAccess = true;
-            break;
-          case 'IO': {
-            const caseData = await Case.findById(document.caseId);
-            if (caseData) {
-              canAccess = caseData.assignedOfficers.some(
-                id => id.toString() === user._id.toString()
-              );
+        if (explicitPermissions.includes(requiredAction)) {
+          canAccess = true;
+        } else {
+          switch (user.role) {
+            case 'Admin':
+              canAccess = true;
+              break;
+            case 'IO': {
+              const caseData = await Case.findById(document.caseId);
+              if (caseData) {
+                canAccess = caseData.assignedOfficers.some(
+                  id => id.toString() === user._id.toString()
+                );
+              }
+              break;
             }
-            break;
-          }
-          case 'Reviewer': {
-            const caseData = await Case.findById(document.caseId);
-            if (caseData) {
-              canAccess = caseData.department === user.department;
+            case 'Reviewer': {
+              const caseData = await Case.findById(document.caseId);
+              if (caseData) {
+                canAccess = caseData.department === user.department;
+              }
+              break;
             }
-            break;
+            case 'Auditor':
+              canAccess = true; // Auditors can see metadata but not content
+              break;
+            case 'LegalLiaison':
+              canAccess = document.status === 'Approved';
+              break;
+            default:
+              canAccess = false;
           }
-          case 'Auditor':
-            canAccess = true; // Auditors can see metadata but not content
-            break;
-          case 'LegalLiaison':
-            canAccess = document.status === 'Approved';
-            break;
-          default:
-            canAccess = false;
         }
 
         if (!canAccess) {
@@ -107,7 +114,8 @@ const rbacCheck = (action, options = {}) => {
             result: 'Failure',
             metadata: { 
               action: action,
-              reason: 'Document-level access denied'
+              reason: 'Document-level access denied',
+              severity: 'HIGH'
             },
           }).catch(() => {});
 
