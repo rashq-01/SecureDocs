@@ -1,9 +1,9 @@
+const config = require('./config/env'); // MUST be loaded first!
 const http = require('http');
 const app = require('./app');
 const connectDB = require('./config/db');
 const { connectRedis } = require('./config/redis');
 const { initSocket } = require('./sockets');
-const config = require('./config/env');
 const logger = require('./utils/logger');
 
 const server = http.createServer(app);

@@ -36,14 +36,23 @@ const DocumentDetailPage = () => {
     }
   };
 
+  const [previewUrl, setPreviewUrl] = useState(null);
+
+  useEffect(() => {
+    // Cleanup object URL on unmount or when previewUrl changes
+    return () => {
+      if (previewUrl) {
+        window.URL.revokeObjectURL(previewUrl);
+      }
+    };
+  }, [previewUrl]);
+
   const handleDownload = async () => {
     try {
       const response = await documentApi.downloadDocument(id);
       
-      // Create a blob from the response data
       const blob = new Blob([response.data]);
       
-      // Extract filename from Content-Disposition header if possible
       let filename = document?.originalFileName || 'document.pdf';
       const disposition = response.headers['content-disposition'];
       if (disposition && disposition.indexOf('filename=') !== -1) {
@@ -53,7 +62,6 @@ const DocumentDetailPage = () => {
         }
       }
 
-      // Create a temporary link element to trigger the download
       const url = window.URL.createObjectURL(blob);
       const link = window.document.createElement('a');
       link.href = url;
@@ -61,13 +69,39 @@ const DocumentDetailPage = () => {
       window.document.body.appendChild(link);
       link.click();
       
-      // Clean up
       link.remove();
       window.URL.revokeObjectURL(url);
       
       toast.success('Download started');
     } catch (error) {
       toast.error('Failed to download document');
+    }
+  };
+
+  const handlePreview = async () => {
+    try {
+      const response = await documentApi.previewDocument(id);
+      const contentType = response.headers['content-type'] || 'application/pdf';
+      const blob = new Blob([response.data], { type: contentType });
+      const url = window.URL.createObjectURL(blob);
+      setPreviewUrl(url);
+      toast.success('Preview loaded');
+    } catch (error) {
+      toast.error('Failed to load preview');
+    }
+  };
+
+  const handleVerifySignature = async () => {
+    try {
+      const response = await documentApi.verifySignature(id);
+      const data = response.data.data;
+      if (data.isValid) {
+        toast.success(`Signature valid! Approved by ${data.approvedBy.name} on ${new Date(data.approvedAt).toLocaleDateString()}`);
+      } else {
+        toast.error('Signature validation failed!');
+      }
+    } catch (error) {
+      toast.error('Failed to verify signature');
     }
   };
 
@@ -150,6 +184,9 @@ const DocumentDetailPage = () => {
           <DocumentDetail 
             document={document} 
             onDownload={handleDownload} 
+            onPreview={handlePreview}
+            previewUrl={previewUrl}
+            onVerifySignature={handleVerifySignature}
             onStatusChange={handleStatusChange}
           />
         )}

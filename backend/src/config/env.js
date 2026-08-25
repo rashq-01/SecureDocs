@@ -6,6 +6,7 @@ const requiredEnvVars = [
   'REDIS_URL',
   'JWT_ACCESS_SECRET',
   'JWT_REFRESH_SECRET',
+  'SIGNATURE_SECRET',
 ];
 
 const missingVars = requiredEnvVars.filter(varName => !process.env[varName]);
@@ -32,4 +33,5 @@ module.exports = {
   maxFileSizeMB: parseInt(process.env.MAX_FILE_SIZE_MB) || 25,
   
   frontendOrigin: process.env.FRONTEND_ORIGIN || 'http://localhost:5173',
+  signatureSecret: process.env.SIGNATURE_SECRET,
 };

@@ -3,6 +3,7 @@ const Document = require('../models/Document.model');
 const User = require('../models/User.model');
 const { grantPermission } = require('./permission.service');
 const { writeAuditLog } = require('./audit.service');
+const { createNotification } = require('./notification.service');
 const { redisClient } = require('../config/redis');
 const crypto = require('crypto');
 const logger = require('../utils/logger');
@@ -60,6 +61,19 @@ const createAccessRequest = async (documentId, requesterId, permissionRequested,
         accessToken: accessToken.substring(0, 20) + '...',
       },
     });
+
+    const requester = await User.findById(requesterId);
+
+    // Notify document owner
+    if (document.uploadedBy) {
+      await createNotification({
+        userId: document.uploadedBy,
+        type: 'AccessRequestSubmitted',
+        message: `${requester ? requester.name : 'A user'} requested ${permissionRequested} access to "${document.title}"`,
+        relatedDocumentId: documentId,
+        relatedCaseId: document.caseId,
+      });
+    }
 
     return request;
   } catch (error) {
@@ -130,6 +144,15 @@ const approveAccessRequest = async (requestId, approverId, expiresInDays = 7) =>
       },
     });
 
+    // Notify requester
+    await createNotification({
+      userId: request.requesterId,
+      type: 'AccessRequestStatusChanged',
+      message: `Your request for ${request.permissionRequested} access to "${document.title}" was approved`,
+      relatedDocumentId: document._id,
+      relatedCaseId: document.caseId,
+    });
+
     return request;
   } catch (error) {
     logger.error(`Access approval failed: ${error.message}`);
@@ -170,6 +193,17 @@ const rejectAccessRequest = async (requestId, approverId, reason = '') => {
         reason,
       },
     });
+
+    const document = await Document.findById(request.documentId);
+    if (document) {
+      await createNotification({
+        userId: request.requesterId,
+        type: 'AccessRequestStatusChanged',
+        message: `Your request for ${request.permissionRequested} access to "${document.title}" was rejected`,
+        relatedDocumentId: document._id,
+        relatedCaseId: document.caseId,
+      });
+    }
 
     return request;
   } catch (error) {

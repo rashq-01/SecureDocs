@@ -1,5 +1,6 @@
 const Document = require('../models/Document.model');
 const Case = require('../models/Case.model');
+const { generateApprovalSignature } = require('./signature.service');
 const logger = require('../utils/logger');
 
 /**
@@ -36,6 +37,15 @@ const updateDocumentStatus = async (documentId, newStatus, userId) => {
 
   const oldStatus = document.status;
   document.status = newStatus;
+
+  // Generate signature if approved
+  if (newStatus === 'Approved') {
+    const timestamp = new Date();
+    document.approvedBy = userId;
+    document.approvedAt = timestamp;
+    document.approvalSignature = generateApprovalSignature(document.fileHash, userId, timestamp);
+  }
+
   await document.save();
 
   logger.info(`Document ${documentId} status changed: ${oldStatus} -> ${newStatus} by ${userId}`);
@@ -107,7 +117,12 @@ const getAccessibleDocuments = async (user, filters = {}) => {
       query.documentType = filters.documentType;
     }
     if (filters.search) {
-      query.title = { $regex: filters.search, $options: 'i' };
+      // filters.search could be a string or a RegExp object
+      query.$or = [
+        { title: { $regex: filters.search } },
+        { originalFileName: { $regex: filters.search } },
+        { documentType: { $regex: filters.search } }
+      ];
     }
 
     const documents = await Document.find(query)

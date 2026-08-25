@@ -1,10 +1,12 @@
 import React, { useState, useEffect } from 'react';
+import { useNavigate } from 'react-router-dom';
 import api from '../../services/api';
 import ActivityFeed from './ActivityFeed';
 import { FolderOpen, FilePlus } from 'lucide-react';
 import toast from 'react-hot-toast';
 
 const IODashboard = () => {
+  const navigate = useNavigate();
   const [cases, setCases] = useState([]);
   const [loading, setLoading] = useState(true);
 
@@ -61,7 +63,12 @@ const IODashboard = () => {
             </div>
             <div>
               <p className="text-xs text-text-secondary uppercase tracking-wider">Quick Upload</p>
-              <p className="text-sm text-accent cursor-pointer hover:underline">Upload new document</p>
+              <p 
+                className="text-sm text-accent cursor-pointer hover:underline"
+                onClick={() => navigate('/documents?upload=true')}
+              >
+                Upload new document
+              </p>
             </div>
           </div>
         </div>

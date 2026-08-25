@@ -3,10 +3,10 @@ import { useAuth } from '../../hooks/useAuth';
 import TamperAlertBadge from './TamperAlertBadge';
 import RoleGate from '../common/RoleGate';
 import { formatDate, formatFileSize } from '../../utils/helpers';
-import { Download, RefreshCw, Check, X } from 'lucide-react';
+import { Download, RefreshCw, Check, X, Eye, ShieldCheck } from 'lucide-react';
 import toast from 'react-hot-toast';
 
-const DocumentDetail = ({ document, onDownload, onStatusChange }) => {
+const DocumentDetail = ({ document, onDownload, onPreview, previewUrl, onVerifySignature, onStatusChange }) => {
   const { user } = useAuth();
 
   const handleDownload = () => {
@@ -38,15 +38,40 @@ const DocumentDetail = ({ document, onDownload, onStatusChange }) => {
           <h2 className="text-lg font-semibold flex items-center gap-3">
             {document.title}
             {document.tamperFlag && <TamperAlertBadge />}
+            {document.status === 'Approved' && document.approvalSignature && (
+              <button 
+                onClick={onVerifySignature}
+                className="badge badge-success flex items-center gap-1 cursor-pointer hover:bg-green-100"
+                title="Click to verify digital signature"
+              >
+                <ShieldCheck size={14} /> Digitally Signed
+              </button>
+            )}
           </h2>
           <p className="text-sm text-text-secondary">
             Case: {document.caseId?.caseId || document.caseId || '—'}
           </p>
         </div>
-        <button onClick={handleDownload} className="btn-primary flex items-center gap-2">
-          <Download size={16} /> Download
-        </button>
+        <div className="flex items-center gap-2">
+          <button onClick={onPreview} className="btn-secondary flex items-center gap-2">
+            <Eye size={16} /> Preview
+          </button>
+          <button onClick={handleDownload} className="btn-primary flex items-center gap-2">
+            <Download size={16} /> Download
+          </button>
+        </div>
       </div>
+
+      {previewUrl && (
+        <div className="mb-6 border border-border rounded overflow-hidden" style={{ height: '500px' }}>
+          <iframe 
+            src={previewUrl} 
+            title="Document Preview" 
+            className="w-full h-full bg-white"
+            frameBorder="0"
+          />
+        </div>
+      )}
 
       <div className="grid grid-cols-2 gap-4 text-sm border-t border-border pt-4">
         <div>

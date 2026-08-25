@@ -3,6 +3,7 @@ import { Search, FileText, Briefcase, User, X } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
 import api from '../../services/api';
 import { useDebounce } from '../../hooks/useDebounce';
+import NotificationDropdown from './NotificationDropdown';
 
 const TopNav = () => {
   const [query, setQuery] = useState('');
@@ -164,6 +165,7 @@ const TopNav = () => {
       
       {/* Space for future notifications / profile */}
       <div className="flex items-center gap-4">
+        <NotificationDropdown />
       </div>
     </div>
   );

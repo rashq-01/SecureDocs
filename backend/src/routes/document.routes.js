@@ -5,7 +5,9 @@ const {
   getDocuments,
   getDocument,
   downloadDocument,
+  previewDocument,
   updateStatus,
+  verifySignature,
 } = require('../controllers/document.controller');
 const {
   archive,
@@ -84,6 +86,23 @@ router.get(
   downloadRateLimiter,
   rbacCheck('download'),
   downloadDocument
+);
+
+// GET preview
+router.get(
+  '/:id/preview',
+  verifyJWT,
+  downloadRateLimiter,
+  rbacCheck('download'),
+  previewDocument
+);
+
+// GET verify signature
+router.get(
+  '/:id/verify-signature',
+  verifyJWT,
+  rbacCheck('view'),
+  verifySignature
 );
 
 // PATCH status

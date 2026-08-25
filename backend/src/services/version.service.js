@@ -17,15 +17,18 @@ const createVersion = async (documentId, fileBuffer, originalFileName, userId, c
       throw new Error('DOCUMENT_NOT_FOUND');
     }
 
+    const { encryptBuffer } = require('./encryption.service');
+    const encryptedBuffer = encryptBuffer(fileBuffer);
+
     // Generate hash for new version
-    const fileHash = generateHash(fileBuffer);
+    const fileHash = generateHash(encryptedBuffer);
     
     // Generate hash-based filename
     const hashFilename = `${fileHash}.${originalFileName.split('.').pop() || 'bin'}`;
     const filePath = path.join(config.uploadDir, hashFilename);
     
-    // Save file
-    fs.writeFileSync(filePath, fileBuffer);
+    // Save ENCRYPTED file
+    fs.writeFileSync(filePath, encryptedBuffer);
 
     // Get next version number
     const nextVersion = (document.currentVersion || 0) + 1;

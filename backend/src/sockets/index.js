@@ -104,6 +104,9 @@ const joinRooms = (socket, user) => {
       socket.join(`case:${caseData._id.toString()}`);
     });
   }
+
+  // Personal user room for notifications
+  socket.join(`user_${user._id.toString()}`);
 };
 
 /**

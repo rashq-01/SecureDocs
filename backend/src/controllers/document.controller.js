@@ -2,9 +2,12 @@ const fs = require('fs');
 const path = require('path');
 const Document = require('../models/Document.model');
 const Case = require('../models/Case.model');
+const User = require('../models/User.model');
 const { generateHash, verifyFileHash, generateHashFilename } = require('../services/hash.service');
+const { verifyApprovalSignature } = require('../services/signature.service');
 const { writeAuditLog } = require('../services/audit.service');
 const { updateDocumentStatus, getAccessibleDocuments } = require('../services/document.service');
+const { createNotification } = require('../services/notification.service');
 const { successResponse, errorResponse, ErrorCodes } = require('../utils/apiResponse');
 const config = require('../config/env');
 const logger = require('../utils/logger');
@@ -124,6 +127,20 @@ const uploadDocument = async (req, res, next) => {
 
     await document.save();
 
+    // Create initial DocumentVersion (V1)
+    const DocumentVersion = require('../models/DocumentVersion.model');
+    const initialVersion = new DocumentVersion({
+      documentId: document._id,
+      version: 1,
+      fileHash,
+      filePath: newFilePath,
+      originalFileName: file.originalname,
+      fileSize: file.size,
+      uploadedBy: req.user._id,
+      changelog: 'Initial upload',
+    });
+    await initialVersion.save();
+
     // Populate for response - use execPopulate or find the document again
     const populatedDoc = await Document.findById(document._id)
       .populate('caseId', 'caseId title')
@@ -140,6 +157,21 @@ const uploadDocument = async (req, res, next) => {
       result: 'Success',
       metadata: { title, documentType, fileSize: file.size },
     });
+
+    // Notify Reviewers of the department
+    const caseObj = await Case.findById(caseId);
+    if (caseObj) {
+      const reviewers = await User.find({ role: 'Reviewer', department: caseObj.department });
+      for (const reviewer of reviewers) {
+        await createNotification({
+          userId: reviewer._id,
+          type: 'NewDocumentInCase',
+          message: `New document "${title}" uploaded to case ${caseObj.caseId}`,
+          relatedDocumentId: document._id,
+          relatedCaseId: caseObj._id,
+        });
+      }
+    }
 
     res.status(201).json(successResponse(populatedDoc, 'Document uploaded successfully'));
   } catch (error) {
@@ -334,36 +366,103 @@ const downloadDocument = async (req, res, next) => {
       return res.status(500).json(errorResponse(ErrorCodes.SERVER_ERROR, 'Failed to decrypt document', 500));
     }
 
-    // Dynamic Watermarking for PDFs
-    if (document.originalFileName.toLowerCase().endsWith('.pdf')) {
-      try {
-        const { PDFDocument, rgb, degrees } = require('pdf-lib');
-        const pdfDoc = await PDFDocument.load(decryptedBuffer);
-        const pages = pdfDoc.getPages();
-        const watermarkText = `CONFIDENTIAL - Downloaded by ${req.user.email} on ${new Date().toISOString().split('T')[0]}. IP: ${req.ip}`;
-        
-        pages.forEach((page) => {
-          const { width, height } = page.getSize();
-          page.drawText(watermarkText, {
-            x: width / 2 - 250,
-            y: height / 2,
-            size: 14,
-            color: rgb(0.9, 0.1, 0.1),
-            opacity: 0.4,
-            rotate: degrees(45),
-          });
-        });
-        
-        decryptedBuffer = await pdfDoc.save();
-      } catch (watermarkErr) {
-        logger.error('Watermarking failed, sending unwatermarked copy: ' + watermarkErr.message);
-        // Fallback to original decrypted buffer if watermarking fails
-      }
-    }
+    // Apply Watermark
+    const { applyWatermark } = require('../services/watermark.service');
+    decryptedBuffer = await applyWatermark(decryptedBuffer, document.originalFileName, req.user.email, req.ip, 'Downloaded');
 
     // Send file buffer directly
     res.setHeader('Content-Disposition', `attachment; filename="${document.originalFileName}"`);
     res.setHeader('Content-Type', document.originalFileName.toLowerCase().endsWith('.pdf') ? 'application/pdf' : 'application/octet-stream');
+    res.send(Buffer.from(decryptedBuffer));
+  } catch (error) {
+    next(error);
+  }
+};
+
+/**
+ * Preview document inline
+ * GET /api/v1/documents/:id/preview
+ */
+const previewDocument = async (req, res, next) => {
+  try {
+    const document = req.document || await Document.findById(req.params.id);
+
+    if (!document) {
+      return res.status(404).json(errorResponse(
+        ErrorCodes.DOCUMENT_NOT_FOUND,
+        'Document not found',
+        404
+      ));
+    }
+
+    if (!fs.existsSync(document.filePath)) {
+      logger.error(`File not found: ${document.filePath}`);
+      return res.status(404).json(errorResponse(
+        ErrorCodes.DOCUMENT_NOT_FOUND,
+        'File not found on server',
+        404
+      ));
+    }
+
+    // Verify hash
+    const { isValid, actualHash } = await verifyFileHash(document.filePath, document.fileHash);
+    
+    if (!isValid) {
+      document.tamperFlag = true;
+      await document.save();
+
+      await writeAuditLog({
+        actorId: req.user._id,
+        action: 'TamperDetected',
+        targetDocumentId: document._id,
+        targetCaseId: document.caseId,
+        ipAddress: req.ip,
+        userAgent: req.headers['user-agent'],
+        result: 'Warning',
+        metadata: { expectedHash: document.fileHash, actualHash, severity: 'CRITICAL' },
+      });
+
+      return res.status(403).json(errorResponse(
+        ErrorCodes.DATA_INTEGRITY_ERROR,
+        'Document integrity compromised (hash mismatch)',
+        403
+      ));
+    }
+
+    await writeAuditLog({
+      actorId: req.user._id,
+      action: 'DocumentViewed',
+      targetDocumentId: document._id,
+      targetCaseId: document.caseId,
+      ipAddress: req.ip,
+      userAgent: req.headers['user-agent'],
+      result: 'Success',
+      metadata: { originalFileName: document.originalFileName },
+    });
+
+    const { decryptFileToBuffer } = require('../services/encryption.service');
+    let decryptedBuffer;
+    try {
+      decryptedBuffer = decryptFileToBuffer(document.filePath);
+    } catch (err) {
+      logger.error('Failed to decrypt document: ' + err.message);
+      return res.status(500).json(errorResponse(ErrorCodes.SERVER_ERROR, 'Failed to decrypt document', 500));
+    }
+
+    const { applyWatermark } = require('../services/watermark.service');
+    decryptedBuffer = await applyWatermark(decryptedBuffer, document.originalFileName, req.user.email, req.ip);
+
+    // Set inline instead of attachment
+    let mimeType = 'application/octet-stream';
+    const ext = document.originalFileName.toLowerCase().split('.').pop();
+    if (ext === 'pdf') mimeType = 'application/pdf';
+    else if (ext === 'jpg' || ext === 'jpeg') mimeType = 'image/jpeg';
+    else if (ext === 'png') mimeType = 'image/png';
+    else if (ext === 'gif') mimeType = 'image/gif';
+    else if (ext === 'txt') mimeType = 'text/plain';
+
+    res.setHeader('Content-Disposition', `inline; filename="${document.originalFileName}"`);
+    res.setHeader('Content-Type', mimeType);
     res.send(Buffer.from(decryptedBuffer));
   } catch (error) {
     next(error);
@@ -409,6 +508,17 @@ const updateStatus = async (req, res, next) => {
       .populate('caseId', 'caseId title')
       .populate('uploadedBy', 'name email');
 
+    // Notify original uploader
+    if (populatedDoc.uploadedBy && populatedDoc.uploadedBy._id.toString() !== req.user._id.toString()) {
+      await createNotification({
+        userId: populatedDoc.uploadedBy._id,
+        type: 'DocumentStatusChanged',
+        message: `Document "${populatedDoc.title}" status changed to ${status}`,
+        relatedDocumentId: populatedDoc._id,
+        relatedCaseId: populatedDoc.caseId ? populatedDoc.caseId._id : null,
+      });
+    }
+
     res.json(successResponse(populatedDoc, `Status updated to ${status}`));
   } catch (error) {
     if (error.message === 'DOCUMENT_NOT_FOUND') {
@@ -429,10 +539,46 @@ const updateStatus = async (req, res, next) => {
   }
 };
 
+/**
+ * Verify document signature
+ * GET /api/v1/documents/:id/verify-signature
+ */
+const verifySignature = async (req, res, next) => {
+  try {
+    const document = await Document.findById(req.params.id)
+      .populate('approvedBy', 'name email');
+
+    if (!document) {
+      return res.status(404).json(errorResponse(ErrorCodes.DOCUMENT_NOT_FOUND, 'Document not found', 404));
+    }
+
+    if (document.status !== 'Approved' || !document.approvalSignature) {
+      return res.status(400).json(errorResponse(ErrorCodes.VALIDATION_ERROR, 'Document does not have a signature', 400));
+    }
+
+    const isValid = verifyApprovalSignature(
+      document.fileHash,
+      document.approvedBy._id,
+      document.approvedAt,
+      document.approvalSignature
+    );
+
+    res.json(successResponse({
+      isValid,
+      approvedBy: document.approvedBy,
+      approvedAt: document.approvedAt,
+    }, isValid ? 'Signature verified successfully' : 'Signature verification failed'));
+  } catch (error) {
+    next(error);
+  }
+};
+
 module.exports = {
   uploadDocument,
   getDocuments,
   getDocument,
   downloadDocument,
+  previewDocument,
   updateStatus,
+  verifySignature,
 };

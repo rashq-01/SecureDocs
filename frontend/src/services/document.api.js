@@ -18,8 +18,16 @@ export const downloadDocument = (id) => {
   return api.get(`/documents/${id}/download`, { responseType: 'blob' });
 };
 
+export const previewDocument = (id) => {
+  return api.get(`/documents/${id}/preview`, { responseType: 'blob' });
+};
+
 export const updateDocumentStatus = (id, status) => {
   return api.patch(`/documents/${id}/status`, { status });
+};
+
+export const verifySignature = (id) => {
+  return api.get(`/documents/${id}/verify-signature`);
 };
 
 // Versions
@@ -29,6 +37,12 @@ export const getDocumentVersions = (documentId) => {
 
 export const downloadVersion = (documentId, versionNumber) => {
   return api.get(`/documents/${documentId}/versions/${versionNumber}/download`, {
+    responseType: 'blob',
+  });
+};
+
+export const previewVersion = (documentId, versionNumber) => {
+  return api.get(`/documents/${documentId}/versions/${versionNumber}/preview`, {
     responseType: 'blob',
   });
 };

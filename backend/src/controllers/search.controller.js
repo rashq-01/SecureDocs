@@ -36,12 +36,9 @@ const globalSearch = async (req, res, next) => {
     
     // 2. Search Documents
     // Must respect RBAC, so we get accessible document IDs first or combine logic
-    const { documents: accessibleDocs } = await getAccessibleDocuments(
-      req.user._id,
-      req.user.role,
-      req.user.department,
-      { title: regex }, // pass regex to document.service filter
-      { limit: 5, skip: 0 }
+    const accessibleDocs = await getAccessibleDocuments(
+      req.user,
+      { search: regex }
     );
     
     // The existing getAccessibleDocuments only filters by title. 

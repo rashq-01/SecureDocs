@@ -1,4 +1,5 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
+import { useLocation, useNavigate } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
 import DocumentList from '../components/documents/DocumentList';
 import DocumentUpload from '../components/documents/DocumentUpload';
@@ -6,9 +7,20 @@ import RoleGate from '../components/common/RoleGate';
 import { Plus } from 'lucide-react';
 
 const Documents = () => {
+  const location = useLocation();
+  const navigate = useNavigate();
   const [showUpload, setShowUpload] = useState(false);
   const [refreshTrigger, setRefreshTrigger] = useState(0);
   const { user } = useAuth();
+
+  useEffect(() => {
+    const params = new URLSearchParams(location.search);
+    if (params.get('upload') === 'true') {
+      setShowUpload(true);
+      // Clean up URL
+      navigate('/documents', { replace: true });
+    }
+  }, [location, navigate]);
 
   const handleUploadSuccess = () => {
     setShowUpload(false);

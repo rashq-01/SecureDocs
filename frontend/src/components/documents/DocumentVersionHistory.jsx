@@ -2,7 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { useAuth } from '../../hooks/useAuth';
 import * as documentApi from '../../services/document.api';
 import { formatDate, formatFileSize } from '../../utils/helpers';
-import { Download, FileText, RefreshCw, Clock, Upload } from 'lucide-react';
+import { Download, FileText, RefreshCw, Clock, Upload, Eye } from 'lucide-react';
 import toast from 'react-hot-toast';
 
 const DocumentVersionHistory = ({ documentId, onVersionCreated }) => {
@@ -12,6 +12,8 @@ const DocumentVersionHistory = ({ documentId, onVersionCreated }) => {
   const [isUploading, setIsUploading] = useState(false);
   const [changelog, setChangelog] = useState('');
   const [selectedFile, setSelectedFile] = useState(null);
+  const [previewUrl, setPreviewUrl] = useState(null);
+  const [previewVersionNumber, setPreviewVersionNumber] = useState(null);
 
   useEffect(() => {
     fetchVersions();
@@ -55,6 +57,21 @@ const DocumentVersionHistory = ({ documentId, onVersionCreated }) => {
     } catch (error) {
       console.error('Failed to download version:', error);
       toast.error('Failed to download version');
+    }
+  };
+
+  const handlePreviewVersion = async (versionNumber) => {
+    try {
+      const response = await documentApi.previewVersion(documentId, versionNumber);
+      const contentType = response.headers['content-type'] || 'application/pdf';
+      const blob = new Blob([response.data], { type: contentType });
+      const url = window.URL.createObjectURL(blob);
+      setPreviewUrl(url);
+      setPreviewVersionNumber(versionNumber);
+      toast.success(`Preview loaded for version ${versionNumber}`);
+    } catch (error) {
+      console.error('Failed to load version preview:', error);
+      toast.error('Failed to load version preview');
     }
   };
 
@@ -104,7 +121,7 @@ const DocumentVersionHistory = ({ documentId, onVersionCreated }) => {
                 type="file"
                 onChange={(e) => setSelectedFile(e.target.files[0])}
                 className="w-full text-sm text-text-secondary file:mr-4 file:py-2 file:px-4 file:rounded file:border-0 file:text-sm file:font-semibold file:bg-accent-subtle file:text-accent hover:file:bg-accent hover:file:text-white transition-colors"
-                accept=".pdf,.doc,.docx,.txt"
+                accept=".pdf,.doc,.docx,.txt,.jpg,.jpeg,.png"
               />
             </div>
             <div>
@@ -126,6 +143,26 @@ const DocumentVersionHistory = ({ documentId, onVersionCreated }) => {
             </button>
           </div>
         </form>
+      )}
+
+      {previewUrl && (
+        <div className="mb-6 border border-border rounded overflow-hidden relative" style={{ height: '500px' }}>
+          <div className="absolute top-0 left-0 right-0 bg-bg-secondary p-2 flex justify-between items-center border-b border-border z-10">
+            <span className="text-sm font-medium">Previewing Version {previewVersionNumber}</span>
+            <button 
+              onClick={() => { setPreviewUrl(null); setPreviewVersionNumber(null); }}
+              className="text-sm text-text-tertiary hover:text-text-primary"
+            >
+              Close Preview
+            </button>
+          </div>
+          <iframe 
+            src={previewUrl} 
+            title="Version Preview" 
+            className="w-full h-full bg-white pt-10"
+            frameBorder="0"
+          />
+        </div>
       )}
 
       {versions.length === 0 ? (
@@ -162,12 +199,20 @@ const DocumentVersionHistory = ({ documentId, onVersionCreated }) => {
                 )}
               </div>
             </div>
-            <button
-              onClick={() => handleDownloadVersion(version.version)}
-              className="btn-secondary flex items-center gap-2 text-sm"
-            >
-              <Download size={14} /> Download
-            </button>
+            <div className="flex items-center gap-2">
+              <button
+                onClick={() => handlePreviewVersion(version.version)}
+                className="btn-secondary flex items-center gap-2 text-sm"
+              >
+                <Eye size={14} /> Preview
+              </button>
+              <button
+                onClick={() => handleDownloadVersion(version.version)}
+                className="btn-secondary flex items-center gap-2 text-sm"
+              >
+                <Download size={14} /> Download
+              </button>
+            </div>
           </div>
         ))}
         </div>

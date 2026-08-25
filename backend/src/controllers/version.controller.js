@@ -112,7 +112,23 @@ const downloadVersion = async (req, res, next) => {
       },
     });
     
-    res.download(version.filePath, version.originalFileName);
+    // Decrypt file
+    const { decryptFileToBuffer } = require('../services/encryption.service');
+    let decryptedBuffer;
+    try {
+      decryptedBuffer = decryptFileToBuffer(version.filePath);
+    } catch (err) {
+      logger.error('Failed to decrypt version document: ' + err.message);
+      return res.status(500).json(errorResponse(ErrorCodes.SERVER_ERROR, 'Failed to decrypt document version', 500));
+    }
+    
+    // Apply Watermark
+    const { applyWatermark } = require('../services/watermark.service');
+    decryptedBuffer = await applyWatermark(decryptedBuffer, version.originalFileName, req.user.email, req.ip, 'Downloaded');
+
+    res.setHeader('Content-Disposition', `attachment; filename="${version.originalFileName}"`);
+    res.setHeader('Content-Type', version.originalFileName.toLowerCase().endsWith('.pdf') ? 'application/pdf' : 'application/octet-stream');
+    res.send(Buffer.from(decryptedBuffer));
   } catch (error) {
     if (error.message === 'VERSION_NOT_FOUND') {
       return res.status(404).json(errorResponse(
@@ -188,9 +204,108 @@ const createNewVersion = async (req, res, next) => {
   }
 };
 
+/**
+ * Preview a specific version
+ * GET /api/v1/documents/:documentId/versions/:versionNumber/preview
+ */
+const previewVersion = async (req, res, next) => {
+  try {
+    const { documentId, versionNumber } = req.params;
+    
+    const version = await downloadVersionService(documentId, parseInt(versionNumber));
+    
+    // Verify hash
+    const fileBuffer = fs.readFileSync(version.filePath);
+    const { generateHash } = require('../services/hash.service');
+    const actualHash = generateHash(fileBuffer);
+    
+    if (actualHash !== version.fileHash) {
+      // Log tamper detection
+      await writeAuditLog({
+        actorId: req.user._id,
+        action: 'TamperDetected',
+        targetDocumentId: documentId,
+        ipAddress: req.ip,
+        userAgent: req.headers['user-agent'],
+        result: 'Failure',
+        metadata: {
+          version: versionNumber,
+          expectedHash: version.fileHash,
+          actualHash,
+          severity: 'CRITICAL'
+        },
+      });
+      
+      return res.status(409).json(errorResponse(
+        ErrorCodes.TAMPER_DETECTED,
+        'Version integrity check failed. File may have been tampered with.',
+        409
+      ));
+    }
+    
+    // Log preview as DocumentViewed
+    await writeAuditLog({
+      actorId: req.user._id,
+      action: 'DocumentViewed',
+      targetDocumentId: documentId,
+      ipAddress: req.ip,
+      userAgent: req.headers['user-agent'],
+      result: 'Success',
+      metadata: {
+        version: versionNumber,
+        fileName: version.originalFileName,
+      },
+    });
+    
+    // Decrypt file
+    const { decryptFileToBuffer } = require('../services/encryption.service');
+    let decryptedBuffer;
+    try {
+      decryptedBuffer = decryptFileToBuffer(version.filePath);
+    } catch (err) {
+      logger.error('Failed to decrypt version document: ' + err.message);
+      return res.status(500).json(errorResponse(ErrorCodes.SERVER_ERROR, 'Failed to decrypt document version', 500));
+    }
+    
+    // Apply Watermark
+    const { applyWatermark } = require('../services/watermark.service');
+    decryptedBuffer = await applyWatermark(decryptedBuffer, version.originalFileName, req.user.email, req.ip);
+
+    // Set inline instead of attachment with correct mime type
+    let mimeType = 'application/octet-stream';
+    const ext = version.originalFileName.toLowerCase().split('.').pop();
+    if (ext === 'pdf') mimeType = 'application/pdf';
+    else if (ext === 'jpg' || ext === 'jpeg') mimeType = 'image/jpeg';
+    else if (ext === 'png') mimeType = 'image/png';
+    else if (ext === 'gif') mimeType = 'image/gif';
+    else if (ext === 'txt') mimeType = 'text/plain';
+
+    res.setHeader('Content-Disposition', `inline; filename="${version.originalFileName}"`);
+    res.setHeader('Content-Type', mimeType);
+    res.send(Buffer.from(decryptedBuffer));
+  } catch (error) {
+    if (error.message === 'VERSION_NOT_FOUND') {
+      return res.status(404).json(errorResponse(
+        ErrorCodes.DOCUMENT_NOT_FOUND,
+        'Version not found',
+        404
+      ));
+    }
+    if (error.message === 'FILE_NOT_FOUND') {
+      return res.status(404).json(errorResponse(
+        ErrorCodes.DOCUMENT_NOT_FOUND,
+        'File not found on server',
+        404
+      ));
+    }
+    next(error);
+  }
+};
+
 module.exports = {
   getVersions,
   getVersion,
   downloadVersion,
+  previewVersion,
   createNewVersion,
 };

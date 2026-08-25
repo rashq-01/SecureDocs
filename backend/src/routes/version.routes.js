@@ -4,6 +4,7 @@ const {
   getVersions, 
   getVersion, 
   downloadVersion,
+  previewVersion,
   createNewVersion 
 } = require('../controllers/version.controller');
 const verifyJWT = require('../middlewares/verifyJWT.middleware');
@@ -26,6 +27,14 @@ router.get(
   downloadRateLimiter,
   rbacCheck('download'),
   downloadVersion
+);
+
+// Preview a specific version
+router.get(
+  '/:documentId/versions/:versionNumber/preview',
+  verifyJWT,
+  rbacCheck('view'),
+  previewVersion
 );
 
 // Create a new version

@@ -9,8 +9,9 @@ const versionRoutes = require('./version.routes');
 const permissionRoutes = require('./permission.routes');
 const accessRequestRoutes = require('./accessRequest.routes');
 const shareRoutes = require('./share.routes');
-const securityRoutes = require('./security.routes');
 const searchRoutes = require('./search.routes');
+const notificationRoutes = require('./notification.routes');
+const securityRoutes = require('./security.routes');
 
 // Mount routes with version prefix
 router.use('/auth', authRoutes);
@@ -29,6 +30,7 @@ router.use('/access-requests', accessRequestRoutes);
 router.use('/shares', shareRoutes);
 router.use('/security', securityRoutes);
 router.use('/search', searchRoutes);
+router.use('/notifications', notificationRoutes);
 
 // Health check
 router.get('/health', (req, res) => {

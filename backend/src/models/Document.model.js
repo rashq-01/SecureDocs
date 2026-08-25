@@ -54,6 +54,16 @@ const documentSchema = new mongoose.Schema({
     type: Boolean,
     default: false,
   },
+  approvalSignature: {
+    type: String,
+  },
+  approvedBy: {
+    type: mongoose.Schema.Types.ObjectId,
+    ref: 'User',
+  },
+  approvedAt: {
+    type: Date,
+  },
   currentVersion: {
     type: Number,
     default: 1,
