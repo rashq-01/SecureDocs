@@ -94,7 +94,7 @@ This is the easiest way to start the backend dependencies.
 ## 1. Clone the repository
 
 ```bash
-git clone <YOUR_GITHUB_REPOSITORY_URL>
+git clone https://github.com/rashq-01/SecureDocs.git
 cd SecureDocs
 ```
 
@@ -168,7 +168,7 @@ Use this option if MongoDB and Redis are already installed and running locally.
 ## 1. Clone the repository
 
 ```bash
-git clone <YOUR_GITHUB_REPOSITORY_URL>
+git clone https://github.com/rashq-01/SecureDocs.git
 cd SecureDocs
 ```
 
