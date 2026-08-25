@@ -131,13 +131,43 @@ const DocumentDetail = ({ document, onDownload, onPreview, previewUrl, onVerifyS
           <span className="text-text-secondary">Version:</span>{' '}
           v{document.currentVersion || 1}
         </div>
-        {document.uploadedBy && (
+      {document.uploadedBy && (
           <div className="col-span-2">
             <span className="text-text-secondary">Uploaded By:</span>{' '}
             {document.uploadedBy.name || 'Unknown'} ({document.uploadedBy.email || 'Unknown email'})
           </div>
         )}
       </div>
+
+      {document.aiSummary && (
+        <div className="mt-6 p-4 rounded-lg bg-accent/5 border border-accent/20 relative overflow-hidden">
+          <div className="absolute top-0 left-0 w-1 h-full bg-accent"></div>
+          <div className="flex items-center gap-2 mb-2">
+            <svg className="w-5 h-5 text-accent" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 10V3L4 14h7v7l9-11h-7z" />
+            </svg>
+            <h3 className="text-sm font-semibold text-accent">AI-Generated Analysis</h3>
+          </div>
+          <p className="text-sm text-text-primary mb-3 leading-relaxed">
+            {document.aiSummary}
+          </p>
+          {document.aiSuggestedType && (
+            <div className="flex items-center gap-2 text-sm">
+              <span className="text-text-secondary">Suggested Classification:</span>
+              <span className={`px-2 py-0.5 rounded text-xs font-medium ${
+                document.aiSuggestedType !== document.documentType 
+                  ? 'bg-status-warningBg text-status-warning border border-status-warning/30' 
+                  : 'bg-accent/10 text-accent border border-accent/20'
+              }`}>
+                {document.aiSuggestedType}
+              </span>
+              {document.aiSuggestedType !== document.documentType && (
+                <span className="text-xs text-text-tertiary italic">(Differs from manual selection)</span>
+              )}
+            </div>
+          )}
+        </div>
+      )}
 
       {canStatusChange && (
         <div className="border-t border-border pt-4 mt-4">

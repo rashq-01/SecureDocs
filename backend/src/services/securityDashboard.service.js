@@ -33,9 +33,9 @@ const getSecurityDashboardData = async (userId) => {
       timestamp: { $gte: since },
     });
 
-    // Get suspicious activities
+    // Get suspicious activities (including AI anomalies)
     const suspiciousActivities = await AuditLog.countDocuments({
-      action: { $in: ['SuspiciousActivity', 'RateLimitExceeded'] },
+      action: { $in: ['SuspiciousActivity', 'RateLimitExceeded', 'AIAnomalyDetected'] },
       timestamp: { $gte: since },
     });
 
@@ -52,6 +52,7 @@ const getSecurityDashboardData = async (userId) => {
           'SuspiciousActivity',
           'UnauthorizedAccessAttempt',
           'RateLimitExceeded',
+          'AIAnomalyDetected'
         ],
       },
       timestamp: { $gte: since },

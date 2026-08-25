@@ -172,6 +172,18 @@ const uploadDocument = async (req, res, next) => {
         });
       }
     }
+    
+    // AI Feature #1 & #2: Publish SUMMARIZE and CLASSIFY job to RabbitMQ
+    try {
+      const { publishAITask } = require('../queues/aiTasks.queue');
+      await publishAITask('SUMMARIZE_AND_CLASSIFY', {
+        documentId: document._id.toString()
+      });
+      logger.info(`🤖 Queued SUMMARIZE_AND_CLASSIFY task for document ${document._id}`);
+    } catch (aiQueueError) {
+      // Per Section 1.6 reliability rule: do NOT fail the upload if AI queue fails
+      logger.error(`⚠️ Failed to queue AI task for document ${document._id}: ${aiQueueError.message}`);
+    }
 
     res.status(201).json(successResponse(populatedDoc, 'Document uploaded successfully'));
   } catch (error) {

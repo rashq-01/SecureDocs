@@ -159,6 +159,14 @@ const DocumentList = () => {
                     <div className="text-xs text-text-secondary mt-0.5 truncate max-w-xs">
                       {doc.originalFileName} ({formatFileSize(doc.fileSize)})
                     </div>
+                    {doc.aiSummary && (
+                      <div className="text-xs text-accent mt-1 flex items-center gap-1 truncate max-w-sm" title={doc.aiSummary}>
+                        <svg className="w-3 h-3 flex-shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 10V3L4 14h7v7l9-11h-7z" />
+                        </svg>
+                        <span className="truncate">{doc.aiSummary}</span>
+                      </div>
+                    )}
                   </td>
                   <td className="p-3 text-text-secondary">{doc.documentType}</td>
                   <td className="p-3 text-text-secondary">

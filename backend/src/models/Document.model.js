@@ -57,6 +57,14 @@ const documentSchema = new mongoose.Schema({
   approvalSignature: {
     type: String,
   },
+  aiSummary: {
+    type: String,
+    default: null,
+  },
+  aiSuggestedType: {
+    type: String,
+    default: null,
+  },
   approvedBy: {
     type: mongoose.Schema.Types.ObjectId,
     ref: 'User',

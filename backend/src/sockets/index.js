@@ -81,7 +81,38 @@ const initSocket = (server) => {
     });
   });
 
+  // Setup Redis subscriber for worker-emitted alerts
+  setupRedisSubscriber(io);
+
   return io;
+};
+
+/**
+ * Listen for messages from Redis (e.g. from the AI Worker) and forward via Socket.IO
+ */
+const setupRedisSubscriber = async (io) => {
+  try {
+    const { createClient } = require('redis');
+    const subClient = createClient({ url: process.env.REDIS_URL || 'redis://127.0.0.1:6379' });
+    await subClient.connect();
+    
+    await subClient.subscribe('SECURITY_ALERTS', (message) => {
+      try {
+        const data = JSON.parse(message);
+        logger.info(`[Socket.IO] Forwarding SecurityAlert from Redis to admin-room`);
+        io.to('admin-room').emit('security:alert', data);
+        // Also emit as a generic activity for the activity feed
+        io.to('admin-room').emit('activity:new', {
+          ...data,
+          timestamp: new Date().toISOString(),
+        });
+      } catch (err) {
+        logger.error(`Error parsing Redis message: ${err.message}`);
+      }
+    });
+  } catch (error) {
+    logger.error(`Failed to setup Redis subscriber for Socket.IO: ${error.message}`);
+  }
 };
 
 /**

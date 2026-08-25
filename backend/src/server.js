@@ -32,6 +32,14 @@ const initRedis = async () => {
 // Start Redis connection in background
 setTimeout(initRedis, 1000);
 
+// Connect to RabbitMQ (non-blocking)
+const { connectRabbitMQ, getChannel } = require('./config/rabbitmq');
+setTimeout(connectRabbitMQ, 1500);
+
+// Start Background Jobs
+const { startAiAnomalyScanner } = require('./jobs/aiAnomalyScan');
+setTimeout(startAiAnomalyScanner, 2000); // Start scanner 2s after boot
+
 // Start server
 const PORT = config.port;
 server.listen(PORT, () => {
