@@ -196,8 +196,104 @@ const logout = async (req, res, next) => {
   }
 };
 
+/**
+ * Update user preferences
+ * PATCH /api/v1/auth/preferences
+ */
+const updatePreferences = async (req, res, next) => {
+  try {
+    const { notificationPreferences } = req.body;
+    
+    if (!notificationPreferences) {
+      return res.status(400).json(errorResponse(
+        ErrorCodes.VALIDATION_ERROR,
+        'Notification preferences are required',
+        400
+      ));
+    }
+    
+    const user = await User.findById(req.user._id);
+    if (!user) {
+      return res.status(404).json(errorResponse(
+        ErrorCodes.RESOURCE_NOT_FOUND,
+        'User not found',
+        404
+      ));
+    }
+    
+    user.notificationPreferences = {
+      ...user.notificationPreferences,
+      ...notificationPreferences
+    };
+    
+    await user.save();
+    
+    const userResponse = user.toObject();
+    delete userResponse.passwordHash;
+    
+    res.json(successResponse({ user: userResponse }, 'Preferences updated successfully'));
+  } catch (error) {
+    next(error);
+  }
+};
+
+/**
+ * Change password
+ * PATCH /api/v1/auth/password
+ */
+const changePassword = async (req, res, next) => {
+  try {
+    const { currentPassword, newPassword } = req.body;
+    
+    if (!currentPassword || !newPassword) {
+      return res.status(400).json(errorResponse(
+        ErrorCodes.VALIDATION_ERROR,
+        'Current and new passwords are required',
+        400
+      ));
+    }
+    
+    const user = await User.findById(req.user._id).select('+passwordHash');
+    if (!user) {
+      return res.status(404).json(errorResponse(
+        ErrorCodes.RESOURCE_NOT_FOUND,
+        'User not found',
+        404
+      ));
+    }
+    
+    const isPasswordValid = await comparePassword(currentPassword, user.passwordHash);
+    if (!isPasswordValid) {
+      return res.status(400).json(errorResponse(
+        ErrorCodes.AUTH_INVALID_CREDENTIALS,
+        'Invalid current password',
+        400
+      ));
+    }
+    
+    user.passwordHash = await hashPassword(newPassword);
+    await user.save();
+    
+    // Log password change
+    await writeAuditLog({
+      actorId: user._id,
+      action: 'PasswordChanged',
+      ipAddress: req.ip,
+      userAgent: req.headers['user-agent'],
+      result: 'Success',
+      metadata: { email: user.email },
+    });
+    
+    res.json(successResponse(null, 'Password changed successfully'));
+  } catch (error) {
+    next(error);
+  }
+};
+
 module.exports = {
   login,
   refresh,
   logout,
+  updatePreferences,
+  changePassword,
 };

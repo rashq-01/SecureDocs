@@ -6,7 +6,7 @@ import toast from 'react-hot-toast';
 export const SocketContext = createContext(null);
 
 export const SocketProvider = ({ children }) => {
-  const { user, isAuthenticated } = useAuth();
+  const { user, isAuthenticated, logout } = useAuth();
   const [isConnected, setIsConnected] = useState(false);
   const socketRef = useRef(null);
 
@@ -61,6 +61,18 @@ export const SocketProvider = ({ children }) => {
 
     socket.on('security:alert', (data) => {
       toast.warning(`Security alert: ${data.rule} (${data.severity})`);
+    });
+
+    socket.on('user:deactivated', async () => {
+      toast.error('Your account has been deactivated by an Administrator.');
+      
+      // Perform client-side logout
+      if (logout) {
+        await logout();
+      }
+      setTimeout(() => {
+        window.location.href = '/login';
+      }, 1500);
     });
 
     return () => {

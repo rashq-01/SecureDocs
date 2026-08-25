@@ -2,6 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import api from '../../services/api';
 import ActivityFeed from './ActivityFeed';
+import StatCard from './StatCard';
 import { FolderOpen, FilePlus } from 'lucide-react';
 import toast from 'react-hot-toast';
 
@@ -45,28 +46,20 @@ const IODashboard = () => {
       <h1 className="text-lg font-semibold mb-6">My Dashboard</h1>
       
       <div className="grid grid-cols-2 gap-4 mb-8">
-        <div className="card">
-          <div className="flex items-center gap-3">
-            <div className="p-2 rounded bg-accent-subtle text-accent">
-              <FolderOpen size={20} />
-            </div>
-            <div>
-              <p className="text-xs text-text-secondary uppercase tracking-wider">Assigned Cases</p>
-              <p className="text-xl font-semibold">{cases.length}</p>
-            </div>
-          </div>
-        </div>
-        <div className="card">
-          <div className="flex items-center gap-3">
-            <div className="p-2 rounded bg-accent-subtle text-accent">
+        <StatCard 
+          label="Assigned Cases" 
+          value={cases.length} 
+          icon={FolderOpen} 
+        />
+        <div className="card group cursor-pointer" onClick={() => navigate('/documents?upload=true')}>
+          <div className="absolute top-0 left-0 right-0 h-[1px] bg-accent/20 opacity-0 group-hover:opacity-100 transition-opacity"></div>
+          <div className="flex items-center gap-3 relative z-10">
+            <div className="p-2 rounded-full bg-accent-subtle text-accent">
               <FilePlus size={20} />
             </div>
             <div>
               <p className="text-xs text-text-secondary uppercase tracking-wider">Quick Upload</p>
-              <p 
-                className="text-sm text-accent cursor-pointer hover:underline"
-                onClick={() => navigate('/documents?upload=true')}
-              >
+              <p className="text-sm font-medium text-accent group-hover:underline mt-1">
                 Upload new document
               </p>
             </div>

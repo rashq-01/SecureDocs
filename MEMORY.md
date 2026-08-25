@@ -34,6 +34,9 @@
 | Project start | UI direction = professional/institutional, NOT the colorful glassmorphism/game-UI style used in team's personal portfolio project | Explicitly different context — SecureDocs is a government security tool, portfolio site is a personal brand showcase. Do not carry portfolio's visual language into this project. See `DESIGN.md`. |
 | Project start | 5 roles defined: Admin, IO (Investigating Officer), Reviewer, Legal Liaison, Auditor | Matches realistic MHA document workflow — mirrors how case documents actually move through review/approval in law enforcement context |
 
+| 2026-08-25 | AI Integration via RabbitMQ | Replaced the earlier "no AI" constraint with a targeted LLM-API strategy. To protect core flows, all AI tasks (Summarization, Smart Classification, Anomaly Detection) will run asynchronously via a RabbitMQ worker. This ensures AI features enhance the system without risking latency or stability of core security functions. |
+| 2026-08-25 | Hybrid Anomaly Detection | Decided to augment (not replace) the fast, rule-based anomaly detection with a background AI scan that analyzes recent audit logs for complex behavioral patterns. |
+
 ---
 
 ## 3. What Happened (Log of Major Updates, Changes, Decisions)
@@ -50,6 +53,11 @@
 ```
 
 ### Log
+
+### 2026-08-25
+**What happened:** Adopted `AI_FEATURES.md` as the definitive AI strategy.
+**Details:** The project now formally includes AI capabilities (Summarization, Classification, Anomaly Detection) powered by hosted LLM APIs, utilizing RabbitMQ for asynchronous processing.
+**Impact:** `docker-compose.yml` must include RabbitMQ. New worker processes will handle AI queues. Core flows (upload, status change) remain synchronous and independent of AI success/failure.
 
 **[Initial Setup]**
 - **What happened:** Project documentation suite created — `PRD.md`, `ARCHITECTURE.md`, `RULES.md`, `PHASES.md`, `DESIGN.md`, `MEMORY.md`

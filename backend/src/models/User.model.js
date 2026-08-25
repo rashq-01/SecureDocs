@@ -39,6 +39,11 @@ const userSchema = new mongoose.Schema({
   lastLogin: {
     type: Date,
   },
+  notificationPreferences: {
+    emailNotifications: { type: Boolean, default: true },
+    securityAlerts: { type: Boolean, default: true },
+    documentUpdates: { type: Boolean, default: true }
+  }
 }, {
   timestamps: true,
 });

@@ -13,3 +13,11 @@ export const refresh = () => {
 export const logout = () => {
   return api.post('/auth/logout');
 };
+
+export const updatePreferences = (notificationPreferences) => {
+  return api.patch('/auth/preferences', { notificationPreferences });
+};
+
+export const changePassword = (currentPassword, newPassword) => {
+  return api.patch('/auth/password', { currentPassword, newPassword });
+};

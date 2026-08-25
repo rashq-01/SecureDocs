@@ -52,25 +52,21 @@ const AdminDashboard = () => {
       label: 'Total Documents',
       value: stats?.totalDocuments || 0,
       icon: FileText,
-      color: 'blue',
     },
     {
       label: 'Pending Review',
       value: stats?.pendingReviews || 0,
       icon: Clock,
-      color: 'yellow',
     },
     {
       label: 'Active Users',
       value: stats?.activeUsers || 0,
       icon: Users,
-      color: 'green',
     },
     {
       label: 'Recent Activities',
       value: stats?.recentActivities || 0,
       icon: Activity,
-      color: 'purple',
     },
   ];
 
@@ -107,39 +103,24 @@ const AdminDashboard = () => {
 
       {securityStats && (
         <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-6">
-          <div className="card">
-            <div className="flex items-center gap-3">
-              <div className="p-2 rounded bg-status-dangerBg text-status-danger">
-                <AlertTriangle size={20} />
-              </div>
-              <div>
-                <p className="text-xs text-text-secondary uppercase tracking-wider">Tamper Detections</p>
-                <p className="text-xl font-semibold">{securityStats.summary?.tamperDetections || 0}</p>
-              </div>
-            </div>
-          </div>
-          <div className="card">
-            <div className="flex items-center gap-3">
-              <div className="p-2 rounded bg-status-warningBg text-status-warning">
-                <ShieldAlert size={20} />
-              </div>
-              <div>
-                <p className="text-xs text-text-secondary uppercase tracking-wider">Suspicious Activities</p>
-                <p className="text-xl font-semibold">{securityStats.summary?.suspiciousActivities || 0}</p>
-              </div>
-            </div>
-          </div>
-          <div className="card">
-            <div className="flex items-center gap-3">
-              <div className="p-2 rounded bg-status-dangerBg text-status-danger">
-                <AlertTriangle size={20} />
-              </div>
-              <div>
-                <p className="text-xs text-text-secondary uppercase tracking-wider">Failed Logins</p>
-                <p className="text-xl font-semibold">{securityStats.summary?.failedLogins || 0}</p>
-              </div>
-            </div>
-          </div>
+          <StatCard 
+            label="Tamper Detections" 
+            value={securityStats.summary?.tamperDetections || 0} 
+            icon={AlertTriangle} 
+            color="danger" 
+          />
+          <StatCard 
+            label="Suspicious Activities" 
+            value={securityStats.summary?.suspiciousActivities || 0} 
+            icon={ShieldAlert} 
+            color="danger" 
+          />
+          <StatCard 
+            label="Failed Logins" 
+            value={securityStats.summary?.failedLogins || 0} 
+            icon={AlertTriangle} 
+            color="danger" 
+          />
         </div>
       )}
 

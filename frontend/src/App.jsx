@@ -16,6 +16,7 @@ import AuditLogs from './pages/AuditLogs';
 import Security from './pages/Security';
 import Settings from './pages/Settings';
 import ShareAccess from './pages/ShareAccess';
+import Users from './pages/Users';
 
 const queryClient = new QueryClient({
   defaultOptions: {
@@ -61,6 +62,7 @@ function App() {
                   <Route path="/audit-logs" element={<AuditLogs />} />
                   <Route path="/security" element={<Security />} />
                   <Route path="/settings" element={<Settings />} />
+                  <Route path="/admin/users" element={<Users />} />
                 </Route>
               </Route>
             </Routes>

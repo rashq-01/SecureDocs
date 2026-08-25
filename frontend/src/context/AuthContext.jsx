@@ -120,8 +120,13 @@ export const AuthProvider = ({ children }) => {
     isLegalLiaison: user?.role === 'LegalLiaison',
   };
 
+  const updateUser = (userData) => {
+    localStorage.setItem('user', JSON.stringify(userData));
+    setUser(userData);
+  };
+
   return (
-    <AuthContext.Provider value={value}>
+    <AuthContext.Provider value={{ ...value, updateUser }}>
       {children}
     </AuthContext.Provider>
   );

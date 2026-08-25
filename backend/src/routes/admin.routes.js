@@ -5,6 +5,7 @@ const {
   getUsers,
   updateUserRole,
   toggleUserActive,
+  createUser,
 } = require('../controllers/admin.controller');
 const verifyJWT = require('../middlewares/verifyJWT.middleware');
 const { rbacCheck } = require('../middlewares/rbac.middleware');
@@ -31,10 +32,17 @@ router.get(
   getUsers
 );
 
+router.post(
+  '/users',
+  verifyJWT,
+  rbacCheck('manageUsers'),
+  createUser
+);
+
 router.patch(
   '/users/:id/role',
   verifyJWT,
-  rbacCheck('manageRoles'),
+  rbacCheck('manageRoles', { checkDocument: false }),
   roleValidation,
   updateUserRole
 );
@@ -42,7 +50,7 @@ router.patch(
 router.patch(
   '/users/:id/toggle-active',
   verifyJWT,
-  rbacCheck('manageUsers'),
+  rbacCheck('manageUsers', { checkDocument: false }),
   toggleUserActive
 );
 

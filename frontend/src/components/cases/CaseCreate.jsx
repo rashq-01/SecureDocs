@@ -278,34 +278,32 @@ const CaseCreate = ({ onSuccess, onCancel }) => {
         </div>
 
         <div>
-          <label className="block text-sm font-medium text-text-primary mb-2">
+          <label className="block text-sm font-medium text-text-primary mb-1">
             Assign Officers
           </label>
-          <div className="grid grid-cols-2 gap-2 max-h-40 overflow-y-auto">
-            {availableOfficers.length === 0 ? (
-              <p className="text-sm text-text-tertiary col-span-2">No officers available</p>
-            ) : (
-              availableOfficers.map(officer => (
-                <button
-                  key={officer._id}
-                  type="button"
-                  onClick={() => toggleOfficer(officer._id)}
-                  className={`flex items-center gap-2 p-2 rounded text-sm transition-colors ${
-                    formData.assignedOfficers.includes(officer._id)
-                      ? 'bg-accent-subtle text-accent border border-accent'
-                      : 'bg-bg-secondary hover:bg-bg-tertiary border border-transparent'
-                  }`}
-                  disabled={loading}
-                >
-                  {formData.assignedOfficers.includes(officer._id) ? (
-                    <UserMinus size={14} />
-                  ) : (
-                    <UserPlus size={14} />
-                  )}
-                  <span className="truncate">{officer.name}</span>
-                </button>
-              ))
-            )}
+          <div className="relative">
+            <select
+              multiple
+              className="input-field min-h-[100px] py-2"
+              value={formData.assignedOfficers}
+              onChange={(e) => {
+                const options = Array.from(e.target.selectedOptions);
+                const values = options.map(option => option.value);
+                setFormData(prev => ({ ...prev, assignedOfficers: values }));
+              }}
+              disabled={loading || availableOfficers.length === 0}
+            >
+              {availableOfficers.length === 0 ? (
+                <option disabled value="">No officers available</option>
+              ) : (
+                availableOfficers.map(officer => (
+                  <option key={officer._id} value={officer._id} className="py-1 px-2">
+                    {officer.name} ({officer.email})
+                  </option>
+                ))
+              )}
+            </select>
+            <p className="text-xs text-text-secondary mt-1">Hold Ctrl/Cmd to select multiple</p>
           </div>
         </div>
 

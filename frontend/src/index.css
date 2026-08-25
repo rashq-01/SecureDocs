@@ -7,16 +7,57 @@
 
 @layer base {
   :root {
-    --bg-primary: #FFFFFF;
-    --bg-secondary: #F7F8FA;
-    --bg-tertiary: #EEF0F3;
-    --border: #E1E4E8;
-    --text-primary: #1A1D23;
+    /* Light Mode */
+    --bg-base: #F4F6F9;
+    --surface-glass: rgba(255, 255, 255, 0.55);
+    --surface-glass-raised: rgba(255, 255, 255, 0.85);
+    --border-glass: rgba(20, 25, 35, 0.08);
+    --border-glass-highlight: rgba(255, 255, 255, 1);
+    
+    --text-primary: #161A22;
     --text-secondary: #5B6270;
     --text-tertiary: #9AA1AC;
+    
     --accent: #1F4E79;
-    --accent-hover: #183C5D;
-    --accent-subtle: #EAF0F6;
+    --accent-hover: #183C5D; /* Kept for hover */
+    --accent-glow: rgba(31, 78, 121, 0.18);
+    --accent-subtle: rgba(31, 78, 121, 0.08);
+
+    --status-success: #1E6B3E;
+    --status-success-bg: #E8F3EC;
+    --status-warning: #8A6116;
+    --status-warning-bg: #FBF3E1;
+    --status-danger: #9B2C2C;
+    --status-danger-bg: #FBEAEA;
+    --status-neutral: #5B6270;
+    --status-neutral-bg: #EEF0F3;
+  }
+
+  .dark {
+    /* Dark Mode */
+    --bg-base: #0B0E14;
+    --surface-glass: rgba(22, 27, 38, 0.65);
+    --surface-glass-raised: rgba(28, 34, 48, 0.75);
+    --border-glass: rgba(255, 255, 255, 0.08);
+    --border-glass-highlight: rgba(255, 255, 255, 0.14);
+    
+    --text-primary: #F2F4F8;
+    --text-secondary: #9CA3B0;
+    --text-tertiary: #5F6674;
+    
+    --accent: #4C8DFF;
+    --accent-hover: #3b76de;
+    --accent-glow: rgba(76, 141, 255, 0.35);
+    --accent-subtle: rgba(76, 141, 255, 0.12);
+
+    --status-success: #4ADE80;
+    --status-success-bg: rgba(74, 222, 128, 0.12);
+    --status-warning: #FBBF24;
+    --status-warning-bg: rgba(251, 191, 36, 0.12);
+    --status-danger: #F87171;
+    --status-danger-bg: rgba(248, 113, 113, 0.12);
+    --status-neutral: #9CA3B0;
+    --status-neutral-bg: rgba(156, 163, 176, 0.12);
   }
 
   * {
@@ -26,7 +67,12 @@
   }
 
   body {
-    @apply bg-bg-secondary text-text-primary font-sans text-base antialiased;
+    @apply bg-bg-base text-text-primary font-sans text-base antialiased;
+    background-image: 
+      radial-gradient(at 0% 0%, var(--accent-subtle) 0px, transparent 50%),
+      radial-gradient(at 100% 100%, var(--accent-subtle) 0px, transparent 50%);
+    background-attachment: fixed;
+    min-height: 100vh;
   }
 
   ::-webkit-scrollbar {
@@ -119,29 +165,36 @@
 
   /* Cards */
   .card {
-    @apply bg-bg-primary border border-border rounded-lg p-6 shadow-sm;
+    @apply bg-bg-surface backdrop-blur-[16px] border border-border rounded-lg p-6 shadow-sm relative overflow-hidden;
+    /* Simulate the top highlight with an inset shadow */
+    box-shadow: inset 0 1px 0 0 var(--border-glass-highlight), 0 1px 2px 0 rgba(0, 0, 0, 0.05);
   }
 
   .card-hover {
-    @apply hover:shadow-md transition-shadow duration-200;
+    @apply hover:shadow-md transition-all duration-300;
+    /* 3D tilt is usually handled via JS, but we can add a subtle upward shift */
+    &:hover {
+      transform: translateY(-2px);
+    }
   }
 
-  /* Tables */
+  /* Tables - remain opaque for legibility */
   .table-cell {
     @apply px-4 py-3 text-sm border-b border-border;
   }
 
   .table-header {
-    @apply px-4 py-3 text-xs font-medium uppercase tracking-wider text-text-secondary text-left border-b border-border bg-bg-secondary;
+    @apply px-4 py-3 text-xs font-medium uppercase tracking-wider text-text-secondary text-left border-b border-border bg-bg-base;
   }
 
   /* Modals */
   .modal-overlay {
-    @apply fixed inset-0 bg-black/50 flex items-center justify-center z-50;
+    @apply fixed inset-0 bg-black/50 backdrop-blur-sm flex items-center justify-center z-50 animate-fadeIn;
   }
 
   .modal-content {
-    @apply bg-bg-primary border border-border rounded-lg p-6 max-w-2xl w-full max-h-[90vh] overflow-y-auto;
+    @apply bg-bg-surfaceRaised backdrop-blur-[20px] border border-border rounded-lg p-6 max-w-2xl w-full max-h-[90vh] overflow-y-auto shadow-2xl animate-spatial;
+    box-shadow: inset 0 1px 0 0 var(--border-glass-highlight), 0 20px 25px -5px rgba(0, 0, 0, 0.1), 0 10px 10px -5px rgba(0, 0, 0, 0.04);
   }
 
   /* Tabs */
@@ -182,20 +235,26 @@
 }
 
 /* Animations */
-@keyframes fadeIn {
-  from { opacity: 0; transform: translateY(-10px); }
-  to { opacity: 1; transform: translateY(0); }
+@keyframes spatialEnter {
+  from { 
+    opacity: 0; 
+    transform: scale(0.96) translateY(4px); 
+  }
+  to { 
+    opacity: 1; 
+    transform: scale(1) translateY(0); 
+  }
 }
 
-@keyframes slideIn {
-  from { transform: translateX(-100%); }
-  to { transform: translateX(0); }
+@keyframes fadeIn {
+  from { opacity: 0; }
+  to { opacity: 1; }
+}
+
+.animate-spatial {
+  animation: spatialEnter 0.2s cubic-bezier(0.16, 1, 0.3, 1) forwards;
 }
 
 .animate-fadeIn {
   animation: fadeIn 0.2s ease-out;
-}
-
-.animate-slideIn {
-  animation: slideIn 0.3s ease-out;
 }

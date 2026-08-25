@@ -72,15 +72,16 @@ The system is designed the way real infrastructure is designed — not as a CRUD
 - Admin dashboard — live stats (total documents, pending reviews, active cases, recent access log)
 - Secure download with access-logging (no direct file exposure — served via authenticated, logged endpoint)
 - Search & filter documents by case ID, status, department, date range
+- **[NEW] Async AI Features (via RabbitMQ)**: Document Summarization, Smart Classification, and Hybrid Anomaly Detection.
 
 ### 5.2 Out of Scope (for hackathon MVP — mention as "future roadmap" in pitch)
 
-- OCR / AI-based document classification
 - Blockchain-based document notarization
 - Multi-factor authentication via SMS/hardware token (mention JWT + planned 2FA as future work)
 - Full digital signature (PKI) integration
 - Mobile application
 - Integration with real government ID/document verification APIs (Aadhaar, DigiLocker) — mock/stub only
+- Training custom ML models (we explicitly use hosted LLM APIs via RabbitMQ)
 
 ---
 
@@ -244,6 +245,7 @@ Chosen to match team's existing expertise and allow rapid, reliable implementati
 6. **Tamper demo** → manually modify the stored file on disk → attempt retrieval → system flags hash mismatch
 7. **Rate limiting demo** → attempt 6 rapid failed logins → show account/IP temporarily blocked
 8. **Live activity feed** → open two browser windows, perform an action in one, show instant update in the other via Socket.IO
+9. **[NEW] AI Anomaly Detection** → Trigger a deliberately unusual pattern (e.g., rapidly download several documents in a short window as a test IO account), wait for the next AI scan cycle, and show the Security Dashboard receiving a live AI-generated alert with a plain-English explanation.
 
 ---
 

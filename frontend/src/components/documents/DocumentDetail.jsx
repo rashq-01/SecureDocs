@@ -8,6 +8,7 @@ import toast from 'react-hot-toast';
 
 const DocumentDetail = ({ document, onDownload, onPreview, previewUrl, onVerifySignature, onStatusChange }) => {
   const { user } = useAuth();
+  const [isVerifying, setIsVerifying] = React.useState(false);
 
   const handleDownload = () => {
     if (onDownload) {
@@ -35,20 +36,40 @@ const DocumentDetail = ({ document, onDownload, onPreview, previewUrl, onVerifyS
     <div className="card">
       <div className="flex items-start justify-between mb-4">
         <div>
-          <h2 className="text-lg font-semibold flex items-center gap-3">
+          <h2 className="text-lg font-semibold flex flex-wrap items-center gap-3">
             {document.title}
             {document.tamperFlag && <TamperAlertBadge />}
             {document.status === 'Approved' && document.approvalSignature && (
               <button 
-                onClick={onVerifySignature}
-                className="badge badge-success flex items-center gap-1 cursor-pointer hover:bg-green-100"
+                onClick={() => {
+                  setIsVerifying(true);
+                  setTimeout(() => {
+                    setIsVerifying(false);
+                    onVerifySignature();
+                  }, 600);
+                }}
+                className={`relative overflow-hidden group flex items-center gap-2 px-3 py-1 rounded-full text-xs font-medium border transition-all duration-300 ${
+                  isVerifying 
+                    ? 'bg-status-successBg border-status-success text-status-success'
+                    : 'bg-bg-surface backdrop-blur-md border-accent/30 text-accent hover:border-accent shadow-[0_0_15px_rgba(var(--accent-rgb),0.15)] hover:shadow-[0_0_20px_rgba(var(--accent-rgb),0.3)]'
+                }`}
                 title="Click to verify digital signature"
+                disabled={isVerifying}
               >
-                <ShieldCheck size={14} /> Digitally Signed
+                {/* Glow effect behind */}
+                <div className="absolute inset-0 bg-accent/10 opacity-0 group-hover:opacity-100 transition-opacity rounded-full"></div>
+                <div className="relative z-10 flex items-center gap-1.5">
+                  {isVerifying ? (
+                    <Check size={14} className="animate-spatial" />
+                  ) : (
+                    <ShieldCheck size={14} />
+                  )}
+                  <span>{isVerifying ? 'Verified' : 'Digitally Signed'}</span>
+                </div>
               </button>
             )}
           </h2>
-          <p className="text-sm text-text-secondary">
+          <p className="text-sm text-text-secondary mt-1">
             Case: {document.caseId?.caseId || document.caseId || '—'}
           </p>
         </div>

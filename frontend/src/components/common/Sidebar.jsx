@@ -60,6 +60,15 @@ const Sidebar = () => {
       });
     }
 
+    // Users - Admin only
+    if (user?.role === ROLES.ADMIN) {
+      items.push({
+        path: '/admin/users',
+        label: 'Users',
+        icon: Users,
+      });
+    }
+
     // Security - Admin only
     if (user?.role === ROLES.ADMIN) {
       items.push({
@@ -69,14 +78,12 @@ const Sidebar = () => {
       });
     }
 
-    // Settings - Admin only
-    if (user?.role === ROLES.ADMIN) {
-      items.push({
-        path: '/settings',
-        label: 'Settings',
-        icon: Settings,
-      });
-    }
+    // Settings - Available to all users
+    items.push({
+      path: '/settings',
+      label: 'Settings',
+      icon: Settings,
+    });
 
     return items;
   };
@@ -101,7 +108,7 @@ const Sidebar = () => {
 
   return (
     <aside
-      className={`bg-bg-primary border-r border-border flex flex-col h-screen transition-all duration-300 ${
+      className={`bg-bg-surface backdrop-blur-[20px] border-r border-border flex flex-col h-screen transition-all duration-300 relative z-20 ${
         collapsed ? 'w-20' : 'w-64'
       } flex-shrink-0`}
     >
@@ -124,17 +131,17 @@ const Sidebar = () => {
       </div>
 
       {/* Navigation */}
-      <nav className="flex-1 p-2 overflow-y-auto">
-        {navItems.map((item) => {
+      <nav className="flex-1 p-2 overflow-y-auto relative">
+        {navItems.map((item, index) => {
           const isActive = location.pathname === item.path;
           return (
             <Link
               key={item.path}
               to={item.path}
-              className={`flex items-center gap-3 px-3 py-2 rounded text-sm transition-colors duration-150 ${
+              className={`relative flex items-center gap-3 px-3 py-2 rounded-lg text-sm transition-all duration-300 z-10 ${
                 isActive
-                  ? 'bg-accent-subtle text-accent font-medium'
-                  : 'text-text-secondary hover:bg-bg-tertiary'
+                  ? 'text-accent font-medium bg-accent-glow'
+                  : 'text-text-secondary hover:bg-accent-subtle hover:text-text-primary'
               } ${collapsed ? 'justify-center' : ''}`}
               title={collapsed ? item.label : ''}
             >

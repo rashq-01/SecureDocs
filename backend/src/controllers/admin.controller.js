@@ -3,6 +3,7 @@ const Document = require('../models/Document.model');
 const Case = require('../models/Case.model');
 const AuditLog = require('../models/AuditLog.model');
 const { writeAuditLog } = require('../services/audit.service');
+const { hashPassword } = require('../services/auth.service');
 const { successResponse, errorResponse, ErrorCodes } = require('../utils/apiResponse');
 const logger = require('../utils/logger');
 
@@ -162,6 +163,21 @@ const toggleUserActive = async (req, res, next) => {
     user.isActive = !user.isActive;
     await user.save();
 
+    // If deactivated, force logout by emitting to their specific room
+    if (!user.isActive) {
+      const { getIO } = require('../sockets');
+      try {
+        const io = getIO();
+        if (io) {
+          io.to(`user_${user._id.toString()}`).emit('user:deactivated', {
+            userId: user._id
+          });
+        }
+      } catch (err) {
+        logger.error(`Failed to emit user:deactivated socket event: ${err.message}`);
+      }
+    }
+
     // Write audit log
     await writeAuditLog({
       actorId: req.user._id,
@@ -185,9 +201,79 @@ const toggleUserActive = async (req, res, next) => {
   }
 };
 
+/**
+ * Create a new user (Admin only)
+ * POST /api/v1/admin/users
+ */
+const createUser = async (req, res, next) => {
+  try {
+    const { name, email, password, role, department } = req.body;
+    
+    if (!name || !email || !password || !role) {
+      return res.status(400).json(errorResponse(
+        ErrorCodes.VALIDATION_ERROR,
+        'Name, email, password, and role are required',
+        400
+      ));
+    }
+    
+    // Check if user already exists
+    const existingUser = await User.findOne({ email });
+    if (existingUser) {
+      return res.status(400).json(errorResponse(
+        ErrorCodes.VALIDATION_ERROR,
+        'User with this email already exists',
+        400
+      ));
+    }
+    
+    // Hash password
+    const passwordHash = await hashPassword(password);
+    
+    // Create user
+    const newUser = new User({
+      name,
+      email,
+      passwordHash,
+      role,
+      department,
+      isActive: true,
+      notificationPreferences: {
+        emailNotifications: true,
+        securityAlerts: true,
+        documentUpdates: true,
+      }
+    });
+    
+    await newUser.save();
+    
+    // Write audit log
+    await writeAuditLog({
+      actorId: req.user._id,
+      action: 'UserCreated',
+      targetUserId: newUser._id,
+      ipAddress: req.ip,
+      userAgent: req.headers['user-agent'],
+      result: 'Success',
+      metadata: { 
+        createdEmail: newUser.email,
+        role: newUser.role,
+      },
+    });
+    
+    const responseUser = newUser.toObject();
+    delete responseUser.passwordHash;
+    
+    res.status(201).json(successResponse(responseUser, 'User created successfully'));
+  } catch (error) {
+    next(error);
+  }
+};
+
 module.exports = {
   getDashboardStats,
   getUsers,
   updateUserRole,
   toggleUserActive,
+  createUser,
 };

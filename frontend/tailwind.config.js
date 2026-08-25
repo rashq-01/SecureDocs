@@ -8,32 +8,37 @@ export default {
     extend: {
       colors: {
         accent: {
-          DEFAULT: '#1F4E79',
-          hover: '#183C5D',
-          subtle: '#EAF0F6',
+          DEFAULT: 'var(--accent)',
+          hover: 'var(--accent-hover)',
+          subtle: 'var(--accent-subtle)',
+          glow: 'var(--accent-glow)',
         },
-        border: '#E1E4E8',
+        border: 'var(--border-glass)',
+        borderHighlight: 'var(--border-glass-highlight)',
         text: {
-          primary: '#1A1D23',
-          secondary: '#5B6270',
-          tertiary: '#9AA1AC',
+          primary: 'var(--text-primary)',
+          secondary: 'var(--text-secondary)',
+          tertiary: 'var(--text-tertiary)',
         },
         bg: {
-          primary: '#FFFFFF',
-          secondary: '#F7F8FA',
-          tertiary: '#EEF0F3',
+          primary: 'var(--bg-base)', /* For backward compatibility with body bg */
+          secondary: 'var(--bg-base)', /* Replacing old bg-secondary */
+          tertiary: 'var(--surface-glass)', /* For nested items or old dividers */
+          base: 'var(--bg-base)',
+          surface: 'var(--surface-glass)',
+          surfaceRaised: 'var(--surface-glass-raised)',
         },
         status: {
-          success: '#1E6B3E',
-          successBg: '#E8F3EC',
-          warning: '#8A6116',
-          warningBg: '#FBF3E1',
-          danger: '#9B2C2C',
-          dangerBg: '#FBEAEA',
-          neutral: '#5B6270',
-          neutralBg: '#EEF0F3',
-          info: '#1F4E79',
-          infoBg: '#EAF0F6',
+          success: 'var(--status-success)',
+          successBg: 'var(--status-success-bg)',
+          warning: 'var(--status-warning)',
+          warningBg: 'var(--status-warning-bg)',
+          danger: 'var(--status-danger)',
+          dangerBg: 'var(--status-danger-bg)',
+          neutral: 'var(--status-neutral)',
+          neutralBg: 'var(--status-neutral-bg)',
+          info: 'var(--accent)',
+          infoBg: 'var(--accent-subtle)',
         },
       },
       fontFamily: {

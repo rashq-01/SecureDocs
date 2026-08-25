@@ -1,6 +1,6 @@
 const express = require('express');
 const router = express.Router();
-const { login, refresh, logout } = require('../controllers/auth.controller');
+const { login, refresh, logout, updatePreferences, changePassword } = require('../controllers/auth.controller');
 const verifyJWT = require('../middlewares/verifyJWT.middleware');
 const { loginRateLimiter } = require('../middlewares/rateLimiter.middleware');
 const { body } = require('express-validator');
@@ -20,5 +20,7 @@ const refreshValidation = [
 router.post('/login', loginRateLimiter, loginValidation, validateRequest, login);
 router.post('/refresh', refreshValidation, validateRequest, refresh);
 router.post('/logout', verifyJWT, logout);
+router.patch('/preferences', verifyJWT, updatePreferences);
+router.patch('/password', verifyJWT, changePassword);
 
 module.exports = router;

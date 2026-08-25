@@ -91,25 +91,31 @@ const CaseMembers = ({ caseData, onUpdate }) => {
       {showAdd && (
         <div className="mb-4 p-4 bg-bg-secondary rounded">
           <p className="text-sm font-medium mb-2">Select Officers to Add</p>
-          <div className="grid grid-cols-2 gap-2 max-h-40 overflow-y-auto mb-3">
-            {availableOfficers
-              .filter(o => !assignedOfficerIds.includes(o._id))
-              .map(officer => (
-                <button
-                  key={officer._id}
-                  type="button"
-                  onClick={() => toggleOfficer(officer._id)}
-                  className={`flex items-center gap-2 p-2 rounded text-sm transition-colors ${
-                    selectedOfficers.includes(officer._id)
-                      ? 'bg-accent-subtle text-accent border border-accent'
-                      : 'bg-bg-primary hover:bg-bg-tertiary border border-border'
-                  }`}
-                  disabled={loading}
-                >
-                  <span className="truncate">{officer.name}</span>
-                  <span className="text-xs text-text-secondary">({officer.email})</span>
-                </button>
-              ))}
+          <div className="relative mb-3">
+            <select
+              multiple
+              className="input-field min-h-[100px] py-2"
+              value={selectedOfficers}
+              onChange={(e) => {
+                const options = Array.from(e.target.selectedOptions);
+                const values = options.map(option => option.value);
+                setSelectedOfficers(values);
+              }}
+              disabled={loading || availableOfficers.length === assignedOfficerIds.length}
+            >
+              {availableOfficers.length === assignedOfficerIds.length ? (
+                <option disabled value="">No more officers available</option>
+              ) : (
+                availableOfficers
+                  .filter(o => !assignedOfficerIds.includes(o._id))
+                  .map(officer => (
+                    <option key={officer._id} value={officer._id} className="py-1 px-2">
+                      {officer.name} ({officer.email})
+                    </option>
+                  ))
+              )}
+            </select>
+            <p className="text-xs text-text-secondary mt-1">Hold Ctrl/Cmd to select multiple</p>
           </div>
           <div className="flex gap-3">
             <button
