@@ -168,7 +168,14 @@ const DocumentList = () => {
                       </div>
                     )}
                   </td>
-                  <td className="p-3 text-text-secondary">{doc.documentType}</td>
+                  <td className="p-3 text-text-secondary">
+                    <div className="flex items-center gap-2">
+                      {doc.documentType}
+                      {doc.aiSuggestedType && doc.aiSuggestedType !== doc.documentType && (
+                        <AlertTriangle size={14} className="text-status-warning" title={`AI Suggested: ${doc.aiSuggestedType}`} />
+                      )}
+                    </div>
+                  </td>
                   <td className="p-3 text-text-secondary">
                     {doc.caseId?.caseId || '—'}
                   </td>

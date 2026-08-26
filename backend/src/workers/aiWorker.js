@@ -38,10 +38,46 @@ const handleSummarizeAndClassify = async (payload) => {
     // construct a metadata-based representation to ensure the API never chokes on binary bytes.
     let extractedText = '';
     const fileExtension = document.originalFileName.split('.').pop().toLowerCase();
-    if (['txt', 'md', 'csv', 'json'].includes(fileExtension)) {
+    
+    // Strict magic byte check for PDFs to prevent pdf-parse from entering an infinite CPU loop on corrupted/fake PDFs
+    const isStrictPdf = decryptedBuffer.length > 4 && decryptedBuffer.toString('utf8', 0, 4) === '%PDF';
+    
+    if (['txt', 'md', 'csv', 'json'].includes(fileExtension) && !isStrictPdf) {
       extractedText = decryptedBuffer.toString('utf8').substring(0, 6000);
+    } else if (isStrictPdf) {
+      try {
+        console.log('Extracting text from PDF using pdf-parse...');
+        const { PDFParse } = require('pdf-parse');
+        const parser = new PDFParse({ data: decryptedBuffer });
+        
+        // Wrap in a timeout because parsing can hang indefinitely on corrupted files
+        const pdfData = await Promise.race([
+          parser.getText(),
+          new Promise((_, reject) => setTimeout(() => reject(new Error('PDF parsing timed out')), 5000))
+        ]);
+        
+        extractedText = pdfData.text.substring(0, 6000);
+      } catch (err) {
+        console.warn('Failed to parse PDF text. Falling back to metadata.', err.message);
+        extractedText = `Title: ${document.title}\nMetadata: ${JSON.stringify(document.metadata)}\nThis is a securely uploaded PDF file. ERROR LOG: ${err.message}`;
+      }
+    } else if (['png', 'jpg', 'jpeg', 'webp'].includes(fileExtension)) {
+      try {
+        console.log('Extracting text from Image using Tesseract OCR...');
+        const Tesseract = require('tesseract.js');
+        
+        // Tesseract takes a buffer directly!
+        const { data: { text } } = await Tesseract.recognize(decryptedBuffer, 'eng', {
+          logger: m => {} // Silence verbose logging
+        });
+        
+        extractedText = text.substring(0, 6000);
+      } catch (err) {
+        console.warn('Failed to parse Image text. Falling back to metadata.', err.message);
+        extractedText = `Title: ${document.title}\nMetadata: ${JSON.stringify(document.metadata)}\nThis is a securely uploaded Image file. ERROR LOG: ${err.message}`;
+      }
     } else {
-      // Safe fallback for binary files during demo without requiring external parsers
+      // Safe fallback for other binary files (zip, etc)
       extractedText = `Title: ${document.title}\nMetadata: ${JSON.stringify(document.metadata)}\nThis is a securely uploaded binary file of type: ${document.originalFileName}`;
     }
 
@@ -61,11 +97,11 @@ const handleSummarizeAndClassify = async (payload) => {
       }
     `;
 
-    const apiKey = process.env.GEMINI_API_KEY;
+    const apiKey = process.env.OPENROUTER_API_KEY;
     let aiResponseText = '';
     
     if (!apiKey) {
-      console.warn('⚠️ GEMINI_API_KEY not found. Simulating AI analysis...');
+      console.warn('⚠️ OPENROUTER_API_KEY not found. Simulating AI analysis...');
       await new Promise(resolve => setTimeout(resolve, 2000));
       aiResponseText = JSON.stringify({
         summary: "This document appears to contain standard operational data or legal findings. It has been automatically logged for review.",
@@ -73,24 +109,26 @@ const handleSummarizeAndClassify = async (payload) => {
       });
     } else {
       try {
-        console.log('Sending request to Gemini...');
-        const controller = new AbortController();
-        const timeoutId = setTimeout(() => controller.abort(), 15000);
-        
-        const response = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/gemini-3.7-flash:generateContent?key=${apiKey}`, {
+        console.log('Sending request to OpenRouter...');
+        const response = await fetch('https://openrouter.ai/api/v1/chat/completions', {
           method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
+          headers: { 
+            'Content-Type': 'application/json',
+            'Authorization': `Bearer ${apiKey}`
+          },
           body: JSON.stringify({
-            contents: [{ parts: [{ text: prompt }] }],
-            generationConfig: { response_mime_type: "application/json" }
+            model: 'openrouter/free',
+            response_format: { type: 'json_object' },
+            messages: [
+              { role: 'user', content: prompt }
+            ]
           }),
-          signal: controller.signal
+          signal: AbortSignal.timeout(60000) // Increased to 60s for slow free-tier models
         });
-        clearTimeout(timeoutId);
 
         const data = await response.json();
         if (data.error) throw new Error(data.error.message);
-        aiResponseText = data.candidates[0].content.parts[0].text;
+        aiResponseText = data.choices[0].message.content;
       } catch (apiError) {
         console.warn(`⚠️ API failed (${apiError.message}). Falling back to simulated analysis...`);
         aiResponseText = JSON.stringify({
@@ -100,7 +138,17 @@ const handleSummarizeAndClassify = async (payload) => {
       }
     }
 
-    const result = JSON.parse(aiResponseText);
+    let result;
+    try {
+      const jsonMatch = aiResponseText.match(/\{[\s\S]*\}/);
+      result = JSON.parse(jsonMatch ? jsonMatch[0] : aiResponseText);
+    } catch (parseError) {
+      console.error('Failed to parse AI response as JSON. Falling back.', aiResponseText);
+      result = {
+        summary: "Analysis completed. (Raw text could not be parsed).",
+        suggestedType: "Other"
+      };
+    }
     
     // Update the document
     document.aiSummary = result.summary;
@@ -162,9 +210,9 @@ const handleAnomalyCheck = async (payload) => {
   `;
 
   try {
-    const apiKey = process.env.GEMINI_API_KEY;
+    const apiKey = process.env.OPENROUTER_API_KEY;
     if (!apiKey) {
-      console.warn('⚠️ GEMINI_API_KEY not found. Simulating AI analysis...');
+      console.warn('⚠️ OPENROUTER_API_KEY not found. Simulating AI analysis...');
       // Simulate LLM delay
       await new Promise(resolve => setTimeout(resolve, 2000));
       return; 
@@ -173,27 +221,29 @@ const handleAnomalyCheck = async (payload) => {
     let aiResponseText = '';
     
     try {
-      const controller = new AbortController();
-      const timeoutId = setTimeout(() => controller.abort(), 15000);
-      
-      const response = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/gemini-3.7-flash:generateContent?key=${apiKey}`, {
+      const response = await fetch('https://openrouter.ai/api/v1/chat/completions', {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
+        headers: { 
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${apiKey}`
+        },
         body: JSON.stringify({
-          contents: [{ parts: [{ text: prompt }] }],
-          generationConfig: { response_mime_type: "application/json" }
+          model: 'openrouter/free',
+          response_format: { type: 'json_object' },
+          messages: [
+            { role: 'user', content: prompt }
+          ]
         }),
-        signal: controller.signal
+        signal: AbortSignal.timeout(60000) // Increased to 60s for slow free-tier models
       });
-      clearTimeout(timeoutId);
 
       const data = await response.json();
       
       if (data.error) {
-        throw new Error(`Gemini API Error: ${data.error.message}`);
+        throw new Error(`OpenRouter API Error: ${data.error.message}`);
       }
 
-      aiResponseText = data.candidates[0].content.parts[0].text;
+      aiResponseText = data.choices[0].message.content;
     } catch (apiError) {
       console.warn(`⚠️ API failed (${apiError.message}). Falling back to simulated analysis for demo stability...`);
       // Fallback response for demo resilience
@@ -204,7 +254,14 @@ const handleAnomalyCheck = async (payload) => {
       });
     }
 
-    const result = JSON.parse(aiResponseText);
+    let result;
+    try {
+      const jsonMatch = aiResponseText.match(/\{[\s\S]*\}/);
+      result = JSON.parse(jsonMatch ? jsonMatch[0] : aiResponseText);
+    } catch (parseError) {
+      console.error('Failed to parse anomaly AI response as JSON.', aiResponseText);
+      result = { isAnomalous: false };
+    }
 
     if (result.isAnomalous) {
       console.log(`🚨 AI Detected Anomaly! Severity: ${result.severity}. Reason: ${result.reason}`);

@@ -83,7 +83,7 @@ const DocumentDetailPage = () => {
       const response = await documentApi.previewDocument(id);
       const contentType = response.headers['content-type'] || 'application/pdf';
       const blob = new Blob([response.data], { type: contentType });
-      const url = window.URL.createObjectURL(blob);
+      const url = window.URL.createObjectURL(blob) + '#toolbar=0';
       setPreviewUrl(url);
       toast.success('Preview loaded');
     } catch (error) {
@@ -185,6 +185,7 @@ const DocumentDetailPage = () => {
             document={document} 
             onDownload={handleDownload} 
             onPreview={handlePreview}
+            onClosePreview={() => setPreviewUrl(null)}
             previewUrl={previewUrl}
             onVerifySignature={handleVerifySignature}
             onStatusChange={handleStatusChange}

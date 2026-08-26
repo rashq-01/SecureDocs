@@ -5,18 +5,78 @@ import RoleGate from '../common/RoleGate';
 import { formatDate, formatFileSize } from '../../utils/helpers';
 import { Download, RefreshCw, Check, X, Eye, ShieldCheck } from 'lucide-react';
 import toast from 'react-hot-toast';
+import { Document, Page, pdfjs } from 'react-pdf';
+import 'react-pdf/dist/Page/AnnotationLayer.css';
+import 'react-pdf/dist/Page/TextLayer.css';
 
-const DocumentDetail = ({ document, onDownload, onPreview, previewUrl, onVerifySignature, onStatusChange }) => {
+// Modern react-pdf v9+ requires the .mjs worker for Vite
+pdfjs.GlobalWorkerOptions.workerSrc = `//unpkg.com/pdfjs-dist@${pdfjs.version}/build/pdf.worker.min.mjs`;
+
+const DocumentDetail = ({ document, onPreview, onClosePreview, previewUrl, onVerifySignature, onStatusChange }) => {
   const { user } = useAuth();
   const [isVerifying, setIsVerifying] = React.useState(false);
+  const [numPages, setNumPages] = React.useState(null);
+  const [imageZoom, setImageZoom] = React.useState(1);
+  const [imageError, setImageError] = React.useState(false);
+  const containerRef = React.useRef(null);
+  const isDragging = React.useRef(false);
+  const startPos = React.useRef({ x: 0, y: 0 });
+  const scrollPos = React.useRef({ left: 0, top: 0 });
 
-  const handleDownload = () => {
-    if (onDownload) {
-      onDownload();
-    } else {
-      toast.error('Download not available');
+  const onDocumentLoadSuccess = ({ numPages }) => {
+    setNumPages(numPages);
+  };
+  
+  const handleZoomIn = () => setImageZoom(prev => Math.min(prev + 0.5, 4));
+  const handleZoomOut = () => setImageZoom(prev => Math.max(prev - 0.5, 0.5));
+
+  const handleMouseDown = (e) => {
+    if (!containerRef.current || imageZoom <= 1) return;
+    isDragging.current = true;
+    startPos.current = { x: e.pageX, y: e.pageY };
+    scrollPos.current = { 
+      left: containerRef.current.scrollLeft, 
+      top: containerRef.current.scrollTop 
+    };
+    containerRef.current.style.cursor = 'grabbing';
+  };
+
+  const handleMouseMove = (e) => {
+    if (!isDragging.current || !containerRef.current) return;
+    e.preventDefault();
+    const dx = e.pageX - startPos.current.x;
+    const dy = e.pageY - startPos.current.y;
+    containerRef.current.scrollLeft = scrollPos.current.left - dx;
+    containerRef.current.scrollTop = scrollPos.current.top - dy;
+  };
+
+  const handleMouseUpOrLeave = () => {
+    isDragging.current = false;
+    if (containerRef.current) {
+      containerRef.current.style.cursor = imageZoom > 1 ? 'grab' : 'default';
     }
   };
+
+  React.useEffect(() => {
+    const el = containerRef.current;
+    if (!el) return;
+    
+    const onWheel = (e) => {
+      if (e.ctrlKey || e.metaKey) {
+        e.preventDefault();
+        if (e.deltaY < 0) {
+          setImageZoom(prev => Math.min(prev + 0.15, 5)); // Zoom in
+        } else {
+          setImageZoom(prev => Math.max(prev - 0.15, 0.5)); // Zoom out
+        }
+      }
+    };
+    
+    el.addEventListener('wheel', onWheel, { passive: false });
+    return () => el.removeEventListener('wheel', onWheel);
+  }, [previewUrl]);
+
+  // Download removed as per strict security policy
 
   const getStatusBadge = (status) => {
     const badges = {
@@ -33,7 +93,11 @@ const DocumentDetail = ({ document, onDownload, onPreview, previewUrl, onVerifyS
   const canStatusChange = canReview && ['Draft', 'UnderReview'].includes(document?.status);
 
   return (
-    <div className="card">
+    <div 
+      className="card select-none"
+      onContextMenu={(e) => e.preventDefault()}
+      onCopy={(e) => e.preventDefault()}
+    >
       <div className="flex items-start justify-between mb-4">
         <div>
           <h2 className="text-lg font-semibold flex flex-wrap items-center gap-3">
@@ -74,23 +138,99 @@ const DocumentDetail = ({ document, onDownload, onPreview, previewUrl, onVerifyS
           </p>
         </div>
         <div className="flex items-center gap-2">
-          <button onClick={onPreview} className="btn-secondary flex items-center gap-2">
-            <Eye size={16} /> Preview
-          </button>
-          <button onClick={handleDownload} className="btn-primary flex items-center gap-2">
-            <Download size={16} /> Download
-          </button>
+          {previewUrl && (
+            <div className="flex bg-bg-surface border border-border rounded items-center overflow-hidden mr-2">
+              <button onClick={handleZoomOut} className="px-2 py-1 hover:bg-bg-tertiary transition-colors text-text-secondary" title="Zoom Out">-</button>
+              <span className="px-2 py-1 text-xs text-text-secondary border-x border-border font-mono">{Math.round(imageZoom * 100)}%</span>
+              <button onClick={handleZoomIn} className="px-2 py-1 hover:bg-bg-tertiary transition-colors text-text-secondary" title="Zoom In">+</button>
+            </div>
+          )}
+          {previewUrl ? (
+            <button onClick={onClosePreview} className="btn-secondary flex items-center gap-2 text-status-warning hover:text-status-warning/80 hover:border-status-warning/50">
+              <X size={16} /> Close Preview
+            </button>
+          ) : (
+            <button onClick={onPreview} className="btn-secondary flex items-center gap-2">
+              <Eye size={16} /> Preview
+            </button>
+          )}
         </div>
       </div>
 
       {previewUrl && (
-        <div className="mb-6 border border-border rounded overflow-hidden" style={{ height: '500px' }}>
-          <iframe 
-            src={previewUrl} 
-            title="Document Preview" 
-            className="w-full h-full bg-white"
-            frameBorder="0"
-          />
+        <div 
+          ref={containerRef}
+          className="mb-6 border border-border rounded overflow-auto bg-[#0f172a] select-none relative" 
+          style={{ height: '600px' }} 
+          onContextMenu={(e) => e.preventDefault()}
+        >
+          {document.originalFileName?.toLowerCase().endsWith('.pdf') ? (
+            <div className="min-w-min min-h-full flex flex-col p-4">
+              <Document
+                file={previewUrl}
+                onLoadSuccess={onDocumentLoadSuccess}
+                onLoadError={(error) => console.error('Error loading PDF:', error)}
+                loading={<div className="text-text-secondary w-full text-center mt-10">Loading secure PDF view...</div>}
+                className="mx-auto"
+              >
+                {Array.from(new Array(numPages), (el, index) => (
+                  <Page 
+                    key={`page_${index + 1}`} 
+                    pageNumber={index + 1} 
+                    scale={imageZoom * 1.2} 
+                    renderTextLayer={false} 
+                    renderAnnotationLayer={false}
+                    className="mb-4 shadow-lg bg-white"
+                  />
+                ))}
+              </Document>
+            </div>
+          ) : (
+            <div 
+              onMouseDown={handleMouseDown}
+              onMouseMove={handleMouseMove}
+              onMouseUp={handleMouseUpOrLeave}
+              onMouseLeave={handleMouseUpOrLeave}
+              className="w-full min-h-full flex items-center justify-center p-4" 
+              style={{ cursor: imageZoom > 1 ? 'grab' : 'default' }}
+            >
+              <div 
+                style={{
+                  transform: `scale(${imageZoom})`,
+                  transformOrigin: imageZoom > 1 ? 'top left' : 'center center',
+                  transition: 'transform 0.15s ease-out'
+                }}
+                className="flex items-center justify-center"
+              >
+                <img 
+                  src={previewUrl} 
+                  alt="Document Preview" 
+                  style={{ 
+                    maxWidth: '100%',
+                    maxHeight: '100%',
+                    objectFit: 'contain'
+                  }}
+                  className="select-none shadow-xl rounded pointer-events-none"
+                  onContextMenu={(e) => e.preventDefault()}
+                  onDragStart={(e) => e.preventDefault()}
+                  onError={(e) => {
+                    if(!imageError) {
+                      setImageError(true);
+                      e.target.style.display = 'none';
+                    }
+                  }}
+                />
+              </div>
+              {imageError && (
+                 <iframe 
+                   src={previewUrl} 
+                   title="Document Preview Fallback" 
+                   className="w-full h-full bg-white select-none pointer-events-none absolute inset-0"
+                   frameBorder="0"
+                 />
+              )}
+            </div>
+          )}
         </div>
       )}
 

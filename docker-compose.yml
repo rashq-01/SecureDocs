@@ -13,6 +13,14 @@ services:
     networks:
       - securedocs-network
 
+  redis:
+    image: redis:7-alpine
+    container_name: securedocs-redis
+    ports:
+      - "6379:6379"
+    networks:
+      - securedocs-network
+
 networks:
   securedocs-network:
     driver: bridge

@@ -13,6 +13,7 @@ const AuditLogTable = () => {
     startDate: '',
     endDate: '',
   });
+  const [exportLimit, setExportLimit] = useState('all');
 
   useEffect(() => {
     fetchLogs();
@@ -35,7 +36,7 @@ const AuditLogTable = () => {
   const handleExport = async (format) => {
     try {
       const toastId = toast.loading(`Generating ${format.toUpperCase()} report...`);
-      const response = await auditApi.exportAuditLogs({ ...filters, format });
+      const response = await auditApi.exportAuditLogs({ ...filters, format, limit: exportLimit });
       
       const blob = new Blob([response.data]);
       let filename = `Compliance_Report_${new Date().toISOString().split('T')[0]}.${format}`;
@@ -135,9 +136,19 @@ const AuditLogTable = () => {
         <button onClick={fetchLogs} className="btn-secondary flex items-center gap-2">
           <RefreshCw size={14} /> Refresh
         </button>
+        <select
+          value={exportLimit}
+          onChange={(e) => setExportLimit(e.target.value)}
+          className="input-field w-32 ml-auto"
+        >
+          <option value="all">Export All</option>
+          <option value="50">Last 50</option>
+          <option value="100">Last 100</option>
+          <option value="200">Last 200</option>
+        </select>
         <button 
           onClick={() => handleExport('pdf')} 
-          className="bg-accent text-white px-3 py-2 rounded text-sm font-medium hover:bg-accent-hover transition-colors flex items-center gap-2 ml-auto"
+          className="bg-accent text-white px-3 py-2 rounded text-sm font-medium hover:bg-accent-hover transition-colors flex items-center gap-2"
         >
           Export PDF
         </button>

@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { useQuery, useMutation, useQueryClient } from 'react-query';
+import { formatDistanceToNow } from 'date-fns';
 import { User, Shield, Key, Search, Plus, MoreVertical, Check, X, Edit, Power, PowerOff } from 'lucide-react';
 import toast from 'react-hot-toast';
 import api from '../services/api';
@@ -141,7 +142,7 @@ const Users = () => {
                     </td>
                     <td className="py-4 px-4">
                       <select
-                        className={`text-xs px-2 py-1 rounded-full bg-status-${getRoleBadgeColor(u.role)}-bg text-status-${getRoleBadgeColor(u.role)} font-medium border-none focus:ring-1 focus:ring-accent outline-none cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed`}
+                        className={`text-xs px-2 py-1 rounded-full bg-status-${getRoleBadgeColor(u.role)}Bg text-status-${getRoleBadgeColor(u.role)} font-medium border-none focus:ring-1 focus:ring-accent outline-none cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed`}
                         value={u.role}
                         onChange={(e) => updateRoleMutation.mutate({ userId: u._id, role: e.target.value })}
                         disabled={updateRoleMutation.isLoading || u._id === currentUser?._id}
@@ -158,9 +159,14 @@ const Users = () => {
                       {u.department || '-'}
                     </td>
                     <td className="py-4 px-4">
-                      <span className={`badge ${u.isActive ? 'badge-success' : 'badge-danger'}`}>
-                        {u.isActive ? 'Active' : 'Inactive'}
-                      </span>
+                      <div className="flex flex-col items-start gap-1">
+                        <span className={`badge ${u.isActive ? 'badge-success' : 'badge-danger'}`}>
+                          {u.isActive ? 'Active Account' : 'Deactivated'}
+                        </span>
+                        <span className="text-[10px] text-text-tertiary font-medium">
+                          {u.lastLogin ? `Last seen: ${formatDistanceToNow(new Date(u.lastLogin), { addSuffix: true })}` : 'Never logged in'}
+                        </span>
+                      </div>
                     </td>
                     <td className="py-4 px-4 text-right">
                       <button

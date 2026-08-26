@@ -101,6 +101,7 @@ const exportAuditLogs = async (req, res, next) => {
       startDate,
       endDate,
       result,
+      limit,
     } = req.query;
 
     const filters = {
@@ -113,9 +114,11 @@ const exportAuditLogs = async (req, res, next) => {
       result,
     };
 
-    // Get ALL logs matching filter for export (no pagination)
+    // Determine export limit (default 10000 if 'all' or undefined)
+    const exportLimit = (limit === 'all' || !limit) ? 10000 : parseInt(limit, 10);
+    
     const options = {
-      limit: 10000,
+      limit: exportLimit,
       skip: 0,
       sortBy: 'timestamp',
       sortOrder: 'desc',

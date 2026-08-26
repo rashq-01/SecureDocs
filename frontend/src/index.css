@@ -58,6 +58,8 @@
     --status-danger-bg: rgba(248, 113, 113, 0.12);
     --status-neutral: #9CA3B0;
     --status-neutral-bg: rgba(156, 163, 176, 0.12);
+    
+    color-scheme: dark;
   }
 
   * {
@@ -76,8 +78,8 @@
   }
 
   ::-webkit-scrollbar {
-    width: 6px;
-    height: 6px;
+    width: 10px;
+    height: 12px;
   }
 
   ::-webkit-scrollbar-track {
@@ -126,12 +128,17 @@
            disabled:opacity-50 disabled:cursor-not-allowed;
   }
 
-  /* Inputs */
   .input-field {
-    @apply w-full px-3 py-2 border border-border rounded text-sm 
+    @apply w-full px-3 py-2 border border-border rounded text-sm bg-bg-base text-text-primary
            focus:outline-none focus:ring-2 focus:ring-accent focus:border-transparent
            disabled:bg-bg-secondary disabled:cursor-not-allowed
            placeholder:text-text-tertiary;
+  }
+  
+  /* Fix native dropdown options in dark mode */
+  .dark select option {
+    background-color: var(--bg-base);
+    color: var(--text-primary);
   }
 
   .input-field-error {
