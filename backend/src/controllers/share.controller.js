@@ -147,6 +147,13 @@ const accessShareLink = async (req, res, next) => {
         429
       ));
     }
+    if (error.message === 'SHARE_UNAUTHORIZED') {
+      return res.status(403).json(errorResponse(
+        ErrorCodes.RBAC_DENIED,
+        'You are not authorized to access this share',
+        403
+      ));
+    }
     next(error);
   }
 };

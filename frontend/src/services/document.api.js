@@ -95,7 +95,7 @@ export const createShare = (data) => {
 };
 
 export const getShares = () => {
-  return api.get('/shares/me');
+  return api.get('/shares/created-by-me');
 };
 
 export const revokeShare = (token) => {

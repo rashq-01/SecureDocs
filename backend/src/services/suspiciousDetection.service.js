@@ -2,7 +2,7 @@ const AuditLog = require('../models/AuditLog.model');
 const Document = require('../models/Document.model');
 const User = require('../models/User.model');
 const { writeAuditLog } = require('./audit.service');
-const { redisClient } = require('../config/redis');
+const { getRedisClient } = require('../config/redis');
 const logger = require('../utils/logger');
 
 // Detection rules configuration
@@ -298,16 +298,19 @@ const createAlert = async ({ userId, ipAddress, rule, severity, details }) => {
   try {
     const alertKey = `alert:${userId}:${rule}`;
     const cooldownMinutes = 5;
-    const existing = await redisClient.get(alertKey);
-    
-    // Prevent alert spam
-    if (existing) {
-      logger.debug(`Alert already sent for ${rule} on user ${userId}`);
-      return false;
-    }
+    const redis = getRedisClient();
+    if (redis) {
+      const existing = await redis.get(alertKey);
+      
+      // Prevent alert spam
+      if (existing) {
+        logger.debug(`Alert already sent for ${rule} on user ${userId}`);
+        return false;
+      }
 
-    // Set cooldown
-    await redisClient.setEx(alertKey, cooldownMinutes * 60, 'true');
+      // Set cooldown
+      await redis.setEx(alertKey, cooldownMinutes * 60, 'true');
+    }
 
     // Write to audit log
     await writeAuditLog({

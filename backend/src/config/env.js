@@ -7,6 +7,7 @@ const requiredEnvVars = [
   'JWT_ACCESS_SECRET',
   'JWT_REFRESH_SECRET',
   'SIGNATURE_SECRET',
+  'ENCRYPTION_KEY',
 ];
 
 const missingVars = requiredEnvVars.filter(varName => !process.env[varName]);

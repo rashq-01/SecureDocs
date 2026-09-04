@@ -1,10 +1,10 @@
 const AccessRequest = require('../models/AccessRequest.model');
 const Document = require('../models/Document.model');
 const User = require('../models/User.model');
-const { grantPermission } = require('./permission.service');
+const { grantPermission, revokePermission } = require('./permission.service');
 const { writeAuditLog } = require('./audit.service');
 const { createNotification } = require('./notification.service');
-const { redisClient } = require('../config/redis');
+const { getRedisClient } = require('../config/redis');
 const crypto = require('crypto');
 const logger = require('../utils/logger');
 
@@ -118,17 +118,20 @@ const approveAccessRequest = async (requestId, approverId, expiresInDays = 7) =>
     await request.save();
 
     // Store access token in Redis with TTL
+    const redis = getRedisClient();
     const ttlSeconds = expiresInDays * 24 * 60 * 60;
-    await redisClient.setEx(
-      `access:${request.accessToken}`,
-      ttlSeconds,
-      JSON.stringify({
-        requestId: request._id.toString(),
-        documentId: request.documentId.toString(),
-        requesterId: request.requesterId.toString(),
-        permission: request.permissionRequested,
-      })
-    );
+    if (redis) {
+      await redis.setEx(
+        `access:${request.accessToken}`,
+        ttlSeconds,
+        JSON.stringify({
+          requestId: request._id.toString(),
+          documentId: request.documentId.toString(),
+          requesterId: request.requesterId.toString(),
+          permission: request.permissionRequested,
+        })
+      );
+    }
 
     // Log the approval
     await writeAuditLog({
@@ -249,7 +252,11 @@ const getUserRequests = async (userId, status = null) => {
  */
 const validateAccessToken = async (accessToken, documentId) => {
   try {
-    const data = await redisClient.get(`access:${accessToken}`);
+    const redis = getRedisClient();
+    if (!redis) {
+      return { valid: false, error: 'REDIS_UNAVAILABLE' };
+    }
+    const data = await redis.get(`access:${accessToken}`);
     if (!data) {
       return { valid: false, error: 'TOKEN_EXPIRED' };
     }
@@ -275,7 +282,10 @@ const validateAccessToken = async (accessToken, documentId) => {
  */
 const revokeAccessToken = async (accessToken, actorId) => {
   try {
-    await redisClient.del(`access:${accessToken}`);
+    const redis = getRedisClient();
+    if (redis) {
+      await redis.del(`access:${accessToken}`);
+    }
     
     // Log the revocation
     await writeAuditLog({
@@ -305,10 +315,23 @@ const cleanupExpiredTokens = async () => {
       status: 'Approved',
     });
 
+    const redis = getRedisClient();
     for (const request of expiredRequests) {
-      if (request.accessToken) {
-        await redisClient.del(`access:${request.accessToken}`);
+      if (request.accessToken && redis) {
+        await redis.del(`access:${request.accessToken}`);
       }
+      
+      try {
+        await revokePermission(
+          request.documentId, 
+          request.requesterId, 
+          request.permissionRequested, 
+          request.approverId // Using approver as the actor who implicitly revokes
+        );
+      } catch (err) {
+        logger.error(`Failed to revoke permission during cleanup: ${err.message}`);
+      }
+
       request.status = 'Expired';
       await request.save();
     }

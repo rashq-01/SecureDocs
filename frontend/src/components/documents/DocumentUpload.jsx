@@ -48,9 +48,9 @@ const DocumentUpload = ({ onSuccess, onCancel }) => {
         toast.error('File size exceeds 25MB limit');
         return;
       }
-      const validTypes = ['application/pdf', 'application/msword', 'application/vnd.openxmlformats-officedocument.wordprocessingml.document', 'image/jpeg', 'image/png'];
+      const validTypes = ['application/pdf', 'application/msword', 'application/vnd.openxmlformats-officedocument.wordprocessingml.document', 'image/jpeg', 'image/png', 'text/plain'];
       if (!validTypes.includes(selected.type)) {
-        toast.error('Invalid file type. Allowed: PDF, DOCX, JPEG, PNG');
+        toast.error('Invalid file type. Allowed: PDF, DOCX, JPEG, PNG, TXT');
         return;
       }
       setFile(selected);
@@ -217,12 +217,12 @@ const DocumentUpload = ({ onSuccess, onCancel }) => {
               <label className="cursor-pointer block">
                 <Upload size={24} className="mx-auto text-text-tertiary mb-2" />
                 <p className="text-sm text-text-secondary">Click to upload or drag and drop</p>
-                <p className="text-xs text-text-tertiary">PDF, DOCX, JPEG, PNG (max 25MB)</p>
+                <p className="text-xs text-text-tertiary">PDF, DOCX, JPEG, PNG, TXT (max 25MB)</p>
                 <input
                   type="file"
                   onChange={handleFileChange}
                   className="hidden"
-                  accept=".pdf,.docx,.jpg,.jpeg,.png"
+                  accept=".pdf,.docx,.jpg,.jpeg,.png,.txt"
                   disabled={uploading}
                 />
               </label>

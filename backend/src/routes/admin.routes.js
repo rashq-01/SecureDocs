@@ -28,7 +28,7 @@ router.get(
 router.get(
   '/users',
   verifyJWT,
-  rbacCheck('manageUsers'),
+  rbacCheck('view', { checkDocument: false }),
   getUsers
 );
 

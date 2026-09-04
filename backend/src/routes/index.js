@@ -7,7 +7,6 @@ const auditRoutes = require('./audit.routes');
 const adminRoutes = require('./admin.routes');
 const versionRoutes = require('./version.routes');
 const permissionRoutes = require('./permission.routes');
-const accessRequestRoutes = require('./accessRequest.routes');
 const shareRoutes = require('./share.routes');
 const searchRoutes = require('./search.routes');
 const notificationRoutes = require('./notification.routes');
@@ -26,7 +25,6 @@ router.use('/documents', versionRoutes);
 router.use('/documents', permissionRoutes);
 
 // Mount other routes
-router.use('/access-requests', accessRequestRoutes);
 router.use('/shares', shareRoutes);
 router.use('/security', securityRoutes);
 router.use('/search', searchRoutes);

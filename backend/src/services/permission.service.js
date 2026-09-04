@@ -1,4 +1,5 @@
 const Document = require('../models/Document.model');
+const User = require('../models/User.model');
 const { writeAuditLog } = require('./audit.service');
 const logger = require('../utils/logger');
 
@@ -36,7 +37,8 @@ const hasPermission = async (userId, documentId, permission) => {
     }
 
     // Admin has all permissions
-    if (req.user && req.user.role === 'Admin') {
+    const user = await User.findById(userId);
+    if (user && user.role === 'Admin') {
       return true;
     }
 

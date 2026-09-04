@@ -26,10 +26,10 @@ router.post(
     body('sharedWith').isMongoId().withMessage('Valid user ID is required'),
     body('permission').isIn(['VIEW', 'DOWNLOAD', 'SHARE', 'EDIT'])
       .withMessage('Invalid permission type'),
-    body('expiresInHours').optional().isInt({ min: 1, max: 168 })
+    body('expiresInHours').optional({ nullable: true }).isInt({ min: 1, max: 168 })
       .withMessage('Expiry must be between 1 and 168 hours'),
-    body('message').optional().isString().withMessage('Message must be a string'),
-    body('maxAccessCount').optional().isInt({ min: 1 })
+    body('message').optional({ nullable: true, checkFalsy: true }).isString().withMessage('Message must be a string'),
+    body('maxAccessCount').optional({ nullable: true }).isInt({ min: 1 })
       .withMessage('Max access count must be at least 1'),
   ],
   validateRequest,

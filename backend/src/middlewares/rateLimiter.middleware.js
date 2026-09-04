@@ -1,6 +1,6 @@
 const rateLimit = require('express-rate-limit');
 const RedisStore = require('rate-limit-redis');
-const { redisClient } = require('../config/redis');
+
 const { errorResponse, ErrorCodes } = require('../utils/apiResponse');
 const logger = require('../utils/logger');
 
@@ -15,33 +15,23 @@ const createRateLimiter = (options = {}) => {
     keyPrefix = 'rate-limit',
   } = options;
 
-  let store = null;
-
+  let store;
   try {
-    // Check if Redis is connected
-    if (redisClient && redisClient.isOpen) {
-      try {
-        // Use the redis client directly with rate-limit-redis
-        store = new RedisStore({
-          sendCommand: (...args) => redisClient.sendCommand(args),
-          prefix: keyPrefix,
-        });
-        logger.debug(`Rate limiter using Redis store: ${keyPrefix}`);
-      } catch (redisStoreError) {
-        logger.warn(`Redis store initialization error: ${redisStoreError.message}`);
-      }
-    } else {
-      logger.warn('Redis not connected, using memory store');
-    }
+    store = new RedisStore({
+      sendCommand: (...args) => {
+        const { getRedisClient } = require('../config/redis');
+        const redis = getRedisClient();
+        if (redis) {
+          return redis.sendCommand(args);
+        }
+        return Promise.reject(new Error('Redis client not available'));
+      },
+      prefix: keyPrefix,
+    });
   } catch (error) {
     logger.warn(`Redis store error: ${error.message}, using memory store`);
-  }
-
-  // Fallback to memory store if Redis is not available
-  if (!store) {
     const MemoryStore = rateLimit.MemoryStore;
     store = new MemoryStore();
-    logger.debug('Using memory store for rate limiting');
   }
 
   return rateLimit({

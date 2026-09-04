@@ -4,7 +4,7 @@ const fs = require('fs');
 // We need a 32-byte key for AES-256
 // In a real production system, this should come from AWS KMS, HashiCorp Vault, or an env variable.
 // For demonstration, we'll use a fixed key from env or a fallback.
-const ENCRYPTION_KEY = process.env.ENCRYPTION_KEY || crypto.randomBytes(32).toString('hex');
+const ENCRYPTION_KEY = process.env.ENCRYPTION_KEY;
 // Convert hex to buffer if it's hex, else just use the buffer (assuming env provides 64 hex chars)
 const keyBuffer = Buffer.from(ENCRYPTION_KEY.padEnd(64, '0').slice(0, 64), 'hex');
 

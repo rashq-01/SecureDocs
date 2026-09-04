@@ -1,7 +1,7 @@
 const Share = require('../models/Share.model');
 const Document = require('../models/Document.model');
 const User = require('../models/User.model');
-const { grantPermission } = require('./permission.service');
+const { grantPermission, revokePermission } = require('./permission.service');
 const { writeAuditLog } = require('./audit.service');
 const { getRedisClient } = require('../config/redis');
 const crypto = require('crypto');
@@ -124,10 +124,22 @@ const validateShareToken = async (shareToken) => {
     if (new Date(share.expiresAt) < new Date()) {
       share.status = 'Expired';
       await share.save();
+      try {
+        await revokePermission(share.documentId, share.sharedWith, share.permission, share.sharedBy);
+      } catch (e) {
+        logger.error(`Failed to revoke expired share permission: ${e.message}`);
+      }
       return { valid: false, error: 'SHARE_EXPIRED' };
     }
 
     if (share.maxAccessCount && share.accessCount >= share.maxAccessCount) {
+      share.status = 'Expired';
+      await share.save();
+      try {
+        await revokePermission(share.documentId, share.sharedWith, share.permission, share.sharedBy);
+      } catch (e) {
+        logger.error(`Failed to revoke max access share permission: ${e.message}`);
+      }
       return { valid: false, error: 'SHARE_MAX_ACCESS_EXCEEDED' };
     }
 
@@ -149,6 +161,10 @@ const accessShare = async (shareToken, userId) => {
     }
 
     const share = validation.data;
+
+    if (share.sharedWith.toString() !== userId.toString()) {
+      throw new Error('SHARE_UNAUTHORIZED');
+    }
 
     share.accessCount += 1;
     share.lastAccessedAt = new Date();
@@ -210,6 +226,12 @@ const revokeShare = async (shareToken, actorId) => {
     const redis = getRedisClient();
     if (redis) {
       await redis.del(`share:${shareToken}`);
+    }
+
+    try {
+      await revokePermission(share.documentId, share.sharedWith, share.permission, actorId);
+    } catch (err) {
+      logger.error(`Failed to revoke share permission: ${err.message}`);
     }
 
     await writeAuditLog({
@@ -276,6 +298,11 @@ const cleanupExpiredShares = async () => {
       await share.save();
       if (redis) {
         await redis.del(`share:${share.shareToken}`);
+      }
+      try {
+        await revokePermission(share.documentId, share.sharedWith, share.permission, share.sharedBy);
+      } catch (e) {
+        logger.error(`Failed to revoke permission for expired share: ${e.message}`);
       }
     }
 

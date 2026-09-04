@@ -35,6 +35,7 @@ const fileFilter = (req, file, cb) => {
     'application/vnd.openxmlformats-officedocument.wordprocessingml.document',
     'image/jpeg',
     'image/png',
+    'text/plain',
   ];
 
   if (allowedTypes.includes(file.mimetype)) {

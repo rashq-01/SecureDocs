@@ -30,7 +30,7 @@ const rbacCheck = (action, options = {}) => {
         await writeAuditLog({
           actorId: user._id,
           action: 'UnauthorizedAccessAttempt',
-          targetDocumentId: req.params.id || req.body.documentId,
+          targetDocumentId: req.params.id || req.params.documentId || req.body.documentId,
           ipAddress: req.ip,
           userAgent: req.headers['user-agent'],
           result: 'Failure',
@@ -51,7 +51,7 @@ const rbacCheck = (action, options = {}) => {
 
       // Check document-level access if documentId is present
       if (options.checkDocument !== false) {
-        const documentId = req.params.id || req.body.documentId || req.query.documentId;
+        const documentId = req.params.id || req.params.documentId || req.body.documentId || req.query.documentId;
         
         if (documentId) {
         const document = await Document.findById(documentId).populate('caseId');
@@ -69,6 +69,8 @@ const rbacCheck = (action, options = {}) => {
         
         let canAccess = false;
         if (explicitPermissions.includes(requiredAction)) {
+          canAccess = true;
+        } else if (document.uploader && document.uploader.toString() === user._id.toString()) {
           canAccess = true;
         } else {
           switch (user.role) {

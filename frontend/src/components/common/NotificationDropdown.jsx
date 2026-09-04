@@ -14,19 +14,30 @@ const NotificationDropdown = () => {
   const dropdownRef = useRef(null);
   const navigate = useNavigate();
   const socketContext = useContext(SocketContext);
-  const { on } = socketContext || {};
+  const { socket } = socketContext || {};
 
   useEffect(() => {
     fetchNotifications();
+  }, []);
 
-    if (on) {
-      const unsubscribe = on('notification:new', (newNotification) => {
-        setNotifications(prev => [newNotification, ...prev]);
-        setUnreadCount(prev => prev + 1);
+  useEffect(() => {
+    if (!socket) return;
+    
+    const handleNewNotification = (newNotification) => {
+      setNotifications(prev => {
+        // Prevent duplicates in case socket emits twice
+        if (prev.some(n => n._id === newNotification._id)) return prev;
+        return [newNotification, ...prev];
       });
-      return () => unsubscribe();
-    }
-  }, [on]);
+      setUnreadCount(prev => prev + 1);
+    };
+
+    socket.on('notification:new', handleNewNotification);
+    
+    return () => {
+      socket.off('notification:new', handleNewNotification);
+    };
+  }, [socket]);
 
   useEffect(() => {
     const handleClickOutside = (event) => {

@@ -93,7 +93,7 @@ router.get(
   '/:id/preview',
   verifyJWT,
   downloadRateLimiter,
-  rbacCheck('download'),
+  rbacCheck('view'),
   previewDocument
 );
 

@@ -39,7 +39,7 @@ const auditLogSchema = new mongoose.Schema({
       'RateLimitExceeded', 'UnauthorizedAccessAttempt',
       
       // Other
-      'SecurityEvent', 'AIAnomalyDetected'
+      'SecurityEvent', 'AIAnomalyDetected', 'MalwareDetected'
     ],
     required: true,
     index: true,
