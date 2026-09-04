@@ -25,12 +25,19 @@ const seedData = async () => {
     await mongoose.connect(config.mongoUri);
     logger.info('Connected to MongoDB');
 
-    // Clear existing data
+    const userCount = await User.countDocuments();
+    if (userCount > 0) {
+      logger.info('Database already contains data. Skipping seed process.');
+      await mongoose.connection.close();
+      process.exit(0);
+    }
+
+    // Clear existing data (just in case there are orphaned documents)
     await User.deleteMany({});
     await Case.deleteMany({});
     await Document.deleteMany({});
     await AuditLog.deleteMany({});
-    logger.info('Cleared existing data');
+    logger.info('Cleared any orphaned data');
 
     // Create users with properly hashed passwords
     const passwordHash = await bcrypt.hash('password123', 12);

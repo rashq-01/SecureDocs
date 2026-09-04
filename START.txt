@@ -1,0 +1,9 @@
+1. docker compose -d --build
+2. docker compose logs -f backend
+3. docker compose logs -f frontend
+4. docker compose logs -f mongodb
+5. docker compose logs -f redis
+6. docker compose logs -f rabbitmq
+7. docker compose logs -f worker
+8. docker compose logs -f seeder
+9. docker compose down
