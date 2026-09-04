@@ -1,26 +1,105 @@
-version: '3.8'
-
 services:
-  rabbitmq:
-    image: rabbitmq:3-management-alpine
-    container_name: securedocs-rabbitmq
+  mongodb:
+    image: mongo:6
+    container_name: securedocs-mongo
     ports:
-      - "5672:5672"    # AMQP port
-      - "15672:15672"  # Management UI
-    environment:
-      RABBITMQ_DEFAULT_USER: securedocs
-      RABBITMQ_DEFAULT_PASS: securedocs_pass
-    networks:
-      - securedocs-network
+      - "27017:27017"
+    volumes:
+      - mongodb_data:/data/db
+    restart: unless-stopped
 
   redis:
     image: redis:7-alpine
     container_name: securedocs-redis
     ports:
       - "6379:6379"
-    networks:
-      - securedocs-network
+    restart: unless-stopped
 
-networks:
-  securedocs-network:
-    driver: bridge
+  rabbitmq:
+    image: rabbitmq:3-management-alpine
+    container_name: securedocs-rabbitmq
+    ports:
+      - "5672:5672"
+      - "15672:15672"
+    environment:
+      RABBITMQ_DEFAULT_USER: securedocs
+      RABBITMQ_DEFAULT_PASS: securedocs_pass
+    restart: unless-stopped
+
+  backend:
+    build:
+      context: ./backend
+      dockerfile: Dockerfile
+    container_name: securedocs-backend
+    ports:
+      - "5000:5000"
+    env_file:
+      - ./backend/.env
+    environment:
+      - NODE_ENV=production
+      - MONGO_URI=mongodb://mongodb:27017/securedocs
+      - REDIS_URL=redis://redis:6379
+      - RABBITMQ_URL=amqp://securedocs:securedocs_pass@rabbitmq:5672
+      - FRONTEND_ORIGIN=http://localhost
+    depends_on:
+      - mongodb
+      - redis
+      - rabbitmq
+    volumes:
+      - backend_uploads:/app/uploads
+    restart: unless-stopped
+
+  worker:
+    build:
+      context: ./backend
+      dockerfile: Dockerfile
+    container_name: securedocs-worker
+    command: npm run worker
+    env_file:
+      - ./backend/.env
+    environment:
+      - NODE_ENV=production
+      # - MONGO_URI=mongodb://mongodb:27017/securedocs
+      - REDIS_URL=redis://redis:6379
+      - RABBITMQ_URL=amqp://securedocs:securedocs_pass@rabbitmq:5672
+    depends_on:
+      - mongodb
+      - redis
+      - rabbitmq
+    volumes:
+      - backend_uploads:/app/uploads
+    restart: unless-stopped
+
+  seeder:
+    build:
+      context: ./backend
+      dockerfile: Dockerfile
+    container_name: securedocs-seeder
+    command: npm run seed
+    env_file:
+      - ./backend/.env
+    environment:
+      - NODE_ENV=production
+      - MONGO_URI=mongodb://mongodb:27017/securedocs
+    depends_on:
+      - mongodb
+    # No restart here; we want it to run once and exit successfully.
+    restart: "no"
+
+  frontend:
+    build:
+      context: ./frontend
+      dockerfile: Dockerfile
+      args:
+        - VITE_API_URL=/api/v1
+        - VITE_SOCKET_URL=/
+    container_name: securedocs-frontend
+    ports:
+      - "80:80"
+    depends_on:
+      - backend
+    restart: unless-stopped
+
+volumes:
+  mongodb_data:
+  backend_uploads:

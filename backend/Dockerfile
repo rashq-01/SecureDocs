@@ -1,12 +1,16 @@
-FROM node:20-alpine
+FROM node:20
 
 WORKDIR /app
 
+# Install dependencies first for better caching
 COPY package*.json ./
-RUN npm ci --only=production
+RUN npm ci --legacy-peer-deps
 
+# Copy the rest of the application
 COPY . .
 
+# Expose the API port
 EXPOSE 5000
 
-CMD ["node", "src/server.js"]
+# Start the application
+CMD ["npm", "run", "start"]
