@@ -14,12 +14,16 @@ export const uploadDocument = (formData) => {
   });
 };
 
-export const downloadDocument = (id) => {
-  return api.get(`/documents/${id}/download`, { responseType: 'blob' });
+export const downloadDocument = (id, lat, lng) => {
+  const params = {};
+  if (lat && lng) { params.lat = lat; params.lng = lng; }
+  return api.get(`/documents/${id}/download`, { params, responseType: 'blob' });
 };
 
-export const previewDocument = (id) => {
-  return api.get(`/documents/${id}/preview`, { responseType: 'blob' });
+export const previewDocument = (id, lat, lng) => {
+  const params = {};
+  if (lat && lng) { params.lat = lat; params.lng = lng; }
+  return api.get(`/documents/${id}/preview`, { params, responseType: 'blob' });
 };
 
 export const updateDocumentStatus = (id, status) => {

@@ -60,7 +60,7 @@ export const SocketProvider = ({ children }) => {
     });
 
     socket.on('security:alert', (data) => {
-      toast.warning(`Security alert: ${data.rule} (${data.severity})`);
+      toast(`Security alert: ${data.rule} (${data.severity})`, { icon: '⚠️' });
     });
 
     socket.on('user:deactivated', async () => {

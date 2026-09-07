@@ -22,6 +22,7 @@ const DocumentDetail = ({ document, onPreview, onClosePreview, previewUrl, onVer
   const isDragging = React.useRef(false);
   const startPos = React.useRef({ x: 0, y: 0 });
   const scrollPos = React.useRef({ left: 0, top: 0 });
+  const [isSpaceDown, setIsSpaceDown] = React.useState(false);
 
   const onDocumentLoadSuccess = ({ numPages }) => {
     setNumPages(numPages);
@@ -31,7 +32,7 @@ const DocumentDetail = ({ document, onPreview, onClosePreview, previewUrl, onVer
   const handleZoomOut = () => setImageZoom(prev => Math.max(prev - 0.5, 0.5));
 
   const handleMouseDown = (e) => {
-    if (!containerRef.current || imageZoom <= 1) return;
+    if (!containerRef.current || !isSpaceDown) return;
     isDragging.current = true;
     startPos.current = { x: e.pageX, y: e.pageY };
     scrollPos.current = { 
@@ -53,22 +54,50 @@ const DocumentDetail = ({ document, onPreview, onClosePreview, previewUrl, onVer
   const handleMouseUpOrLeave = () => {
     isDragging.current = false;
     if (containerRef.current) {
-      containerRef.current.style.cursor = imageZoom > 1 ? 'grab' : 'default';
+      containerRef.current.style.cursor = isSpaceDown ? 'grab' : 'auto';
     }
   };
+
+  React.useEffect(() => {
+    if (containerRef.current && !isDragging.current) {
+      containerRef.current.style.cursor = isSpaceDown ? 'grab' : 'auto';
+    }
+  }, [isSpaceDown]);
+
+  React.useEffect(() => {
+    const handleKeyDown = (e) => {
+      if (e.code === 'Space' && e.target.tagName !== 'INPUT' && e.target.tagName !== 'TEXTAREA') {
+        e.preventDefault();
+        setIsSpaceDown(true);
+      }
+    };
+    const handleKeyUp = (e) => {
+      if (e.code === 'Space') {
+        setIsSpaceDown(false);
+      }
+    };
+    
+    window.addEventListener('keydown', handleKeyDown);
+    window.addEventListener('keyup', handleKeyUp);
+    return () => {
+      window.removeEventListener('keydown', handleKeyDown);
+      window.removeEventListener('keyup', handleKeyUp);
+    };
+  }, []);
 
   React.useEffect(() => {
     const el = containerRef.current;
     if (!el) return;
     
     const onWheel = (e) => {
-      if (e.ctrlKey || e.metaKey) {
-        e.preventDefault();
-        if (e.deltaY < 0) {
-          setImageZoom(prev => Math.min(prev + 0.15, 5)); // Zoom in
-        } else {
-          setImageZoom(prev => Math.max(prev - 0.15, 0.5)); // Zoom out
-        }
+      // Prevent default vertical/horizontal scrolling
+      e.preventDefault();
+      
+      // Determine zoom direction based on scroll delta
+      if (e.deltaY < 0) {
+        setImageZoom(prev => Math.min(prev + 0.15, 5)); // Zoom in
+      } else if (e.deltaY > 0) {
+        setImageZoom(prev => Math.max(prev - 0.15, 0.5)); // Zoom out
       }
     };
     
@@ -163,6 +192,10 @@ const DocumentDetail = ({ document, onPreview, onClosePreview, previewUrl, onVer
           className="mb-6 border border-border rounded overflow-auto bg-[#0f172a] select-none relative" 
           style={{ height: '600px' }} 
           onContextMenu={(e) => e.preventDefault()}
+          onMouseDown={handleMouseDown}
+          onMouseMove={handleMouseMove}
+          onMouseUp={handleMouseUpOrLeave}
+          onMouseLeave={handleMouseUpOrLeave}
         >
           {document.originalFileName?.toLowerCase().endsWith('.pdf') ? (
             <div className="min-w-min min-h-full flex flex-col p-4">
@@ -187,12 +220,7 @@ const DocumentDetail = ({ document, onPreview, onClosePreview, previewUrl, onVer
             </div>
           ) : (
             <div 
-              onMouseDown={handleMouseDown}
-              onMouseMove={handleMouseMove}
-              onMouseUp={handleMouseUpOrLeave}
-              onMouseLeave={handleMouseUpOrLeave}
               className="w-full min-h-full flex items-center justify-center p-4" 
-              style={{ cursor: imageZoom > 1 ? 'grab' : 'default' }}
             >
               <div 
                 style={{

@@ -6,6 +6,11 @@ services:
       - "27017:27017"
     volumes:
       - mongodb_data:/data/db
+    healthcheck:
+      test: echo 'db.runCommand("ping").ok' | mongosh localhost:27017/test --quiet
+      interval: 10s
+      timeout: 5s
+      retries: 5
     restart: unless-stopped
 
   redis:
@@ -13,6 +18,11 @@ services:
     container_name: securedocs-redis
     ports:
       - "6379:6379"
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
     restart: unless-stopped
 
   rabbitmq:
@@ -24,6 +34,51 @@ services:
     environment:
       RABBITMQ_DEFAULT_USER: securedocs
       RABBITMQ_DEFAULT_PASS: securedocs_pass
+    healthcheck:
+      test: ["CMD", "rabbitmq-diagnostics", "-q", "ping"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    restart: unless-stopped
+
+  seeder:
+    build:
+      context: ./backend
+      dockerfile: Dockerfile
+    container_name: securedocs-seeder
+    command: npm run seed
+    env_file:
+      - ./backend/.env
+    environment:
+      - NODE_ENV=production
+      - MONGO_URI=mongodb://mongodb:27017/securedocs
+    depends_on:
+      mongodb:
+        condition: service_healthy
+    restart: "no"
+
+  worker:
+    build:
+      context: ./backend
+      dockerfile: Dockerfile
+    container_name: securedocs-worker
+    command: npm run worker
+    env_file:
+      - ./backend/.env
+    environment:
+      - NODE_ENV=production
+      - MONGO_URI=mongodb://mongodb:27017/securedocs
+      - REDIS_URL=redis://redis:6379
+      - RABBITMQ_URL=amqp://securedocs:securedocs_pass@rabbitmq:5672
+    depends_on:
+      mongodb:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+      rabbitmq:
+        condition: service_healthy
+    volumes:
+      - backend_uploads:/app/uploads
     restart: unless-stopped
 
   backend:
@@ -42,49 +97,22 @@ services:
       - RABBITMQ_URL=amqp://securedocs:securedocs_pass@rabbitmq:5672
       - FRONTEND_ORIGIN=http://localhost
     depends_on:
-      - mongodb
-      - redis
-      - rabbitmq
+      mongodb:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+      rabbitmq:
+        condition: service_healthy
+      worker:
+        condition: service_started
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:5000/health"]
+      interval: 15s
+      timeout: 5s
+      retries: 5
     volumes:
       - backend_uploads:/app/uploads
     restart: unless-stopped
-
-  worker:
-    build:
-      context: ./backend
-      dockerfile: Dockerfile
-    container_name: securedocs-worker
-    command: npm run worker
-    env_file:
-      - ./backend/.env
-    environment:
-      - NODE_ENV=production
-      # - MONGO_URI=mongodb://mongodb:27017/securedocs
-      - REDIS_URL=redis://redis:6379
-      - RABBITMQ_URL=amqp://securedocs:securedocs_pass@rabbitmq:5672
-    depends_on:
-      - mongodb
-      - redis
-      - rabbitmq
-    volumes:
-      - backend_uploads:/app/uploads
-    restart: unless-stopped
-
-  seeder:
-    build:
-      context: ./backend
-      dockerfile: Dockerfile
-    container_name: securedocs-seeder
-    command: npm run seed
-    env_file:
-      - ./backend/.env
-    environment:
-      - NODE_ENV=production
-      - MONGO_URI=mongodb://mongodb:27017/securedocs
-    depends_on:
-      - mongodb
-    # No restart here; we want it to run once and exit successfully.
-    restart: "no"
 
   frontend:
     build:
@@ -97,7 +125,13 @@ services:
     ports:
       - "80:80"
     depends_on:
-      - backend
+      backend:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD", "wget", "-qO-", "http://localhost"]
+      interval: 15s
+      timeout: 5s
+      retries: 5
     restart: unless-stopped
 
 volumes:

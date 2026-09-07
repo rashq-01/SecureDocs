@@ -1,9 +1,20 @@
 const logger = require('../utils/logger');
 
-const applyWatermark = async (buffer, filename, email, ip, action = 'Previewed') => {
+const applyWatermark = async (buffer, filename, email, ip, action = 'Previewed', lat = null, lng = null) => {
   const ext = filename.toLowerCase().split('.').pop();
   const date = new Date().toISOString().split('T')[0];
-  const watermarkText = `CONFIDENTIAL - ${action} by ${email} on ${date}. IP: ${ip}`;
+  
+  const lines = [
+    'CONFIDENTIAL',
+    `${action} by ${email}`,
+    `Date: ${date}`,
+    `IP: ${ip}`
+  ];
+  if (lat && lng) {
+    lines.push(`Loc: ${lat}, ${lng}`);
+  }
+  const watermarkText = lines.join('\n');
+  const maxLineLength = Math.max(...lines.map(l => l.length));
 
   if (ext === 'pdf') {
     try {
@@ -13,14 +24,30 @@ const applyWatermark = async (buffer, filename, email, ip, action = 'Previewed')
       
       pages.forEach((page) => {
         const { width, height } = page.getSize();
+        const fontSize = Math.min(18, width / (maxLineLength * 0.55));
+        const lineHeight = fontSize * 1.2;
+        const textWidth = maxLineLength * fontSize * 0.5;
         
-        page.drawText(watermarkText, {
-          x: 10,
-          y: 10,
-          size: Math.min(12, width / (watermarkText.length * 0.6)), // scale down if needed
-          color: rgb(1, 0, 0), // pure red
-          opacity: 0.8, // 20% transparency
-          rotate: degrees(0),
+        // Approximate offset for 45-degree rotated centering
+        const xOffset = textWidth * 0.35;
+        const yOffset = textWidth * 0.35;
+
+        const positions = [
+          { x: width / 2, y: height * 0.2 },
+          { x: width / 2, y: height * 0.5 },
+          { x: width / 2, y: height * 0.8 }
+        ];
+        
+        positions.forEach(pos => {
+          page.drawText(watermarkText, {
+            x: pos.x - xOffset,
+            y: pos.y - yOffset,
+            size: fontSize,
+            lineHeight: lineHeight,
+            color: rgb(1, 0, 0),
+            opacity: 0.25,
+            rotate: degrees(45),
+          });
         });
       });
       
@@ -43,16 +70,29 @@ const applyWatermark = async (buffer, filename, email, ip, action = 'Previewed')
       const width = metadata.width || 800;
       const height = metadata.height || 800;
       
-      // Calculate font size relative to image width so it always fits
-      const maxFontSize = Math.floor(width / (watermarkText.length * 0.6));
-      const fontSize = Math.max(12, Math.min(24, maxFontSize));
+      const maxFontSize = Math.floor(width / (maxLineLength * 0.55));
+      const fontSize = Math.max(16, Math.min(36, maxFontSize));
+      
+      let texts = '';
+      const positions = [
+        { x: width / 2, y: height * 0.2 },
+        { x: width / 2, y: height * 0.5 },
+        { x: width / 2, y: height * 0.8 }
+      ];
+      
+      positions.forEach(pos => {
+        const spans = lines.map((line, i) => 
+          `<tspan x="${pos.x}" dy="${i === 0 ? 0 : '1.2em'}">${line}</tspan>`
+        ).join('');
+        texts += `<text x="${pos.x}" y="${pos.y}" text-anchor="middle" transform="rotate(-45 ${pos.x} ${pos.y})" class="title">${spans}</text>`;
+      });
       
       const svgImage = `
         <svg width="${width}" height="${height}">
           <style>
-            .title { fill: rgba(255, 0, 0, 0.8); font-size: ${fontSize}px; font-weight: bold; font-family: sans-serif; }
+            .title { fill: rgba(255, 0, 0, 0.25); font-size: ${fontSize}px; font-weight: bold; font-family: sans-serif; }
           </style>
-          <text x="10" y="${height - 10}" text-anchor="start" class="title">${watermarkText}</text>
+          ${texts}
         </svg>
       `;
       
@@ -62,7 +102,7 @@ const applyWatermark = async (buffer, filename, email, ip, action = 'Previewed')
         .composite([
           {
             input: svgBuffer,
-            gravity: 'southwest',
+            gravity: 'center',
           }
         ])
         .toBuffer();

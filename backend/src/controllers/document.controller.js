@@ -379,8 +379,9 @@ const downloadDocument = async (req, res, next) => {
     }
 
     // Apply Watermark
+    const { lat, lng } = req.query;
     const { applyWatermark } = require('../services/watermark.service');
-    decryptedBuffer = await applyWatermark(decryptedBuffer, document.originalFileName, req.user.email, req.ip, 'Downloaded');
+    decryptedBuffer = await applyWatermark(decryptedBuffer, document.originalFileName, req.user.email, req.ip, 'Downloaded', lat, lng);
 
     // Send file buffer directly
     res.setHeader('Content-Disposition', `attachment; filename="${document.originalFileName}"`);
@@ -461,8 +462,9 @@ const previewDocument = async (req, res, next) => {
       return res.status(500).json(errorResponse(ErrorCodes.SERVER_ERROR, 'Failed to decrypt document', 500));
     }
 
+    const { lat, lng } = req.query;
     const { applyWatermark } = require('../services/watermark.service');
-    decryptedBuffer = await applyWatermark(decryptedBuffer, document.originalFileName, req.user.email, req.ip);
+    decryptedBuffer = await applyWatermark(decryptedBuffer, document.originalFileName, req.user.email, req.ip, 'Previewed', lat, lng);
 
     // Set inline instead of attachment
     let mimeType = 'application/octet-stream';
