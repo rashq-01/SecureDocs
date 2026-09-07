@@ -118,7 +118,6 @@ const handleSummarizeAndClassify = async (payload) => {
           },
           body: JSON.stringify({
             model: 'openrouter/free',
-            response_format: { type: 'json_object' },
             messages: [
               { role: 'user', content: prompt }
             ]
@@ -140,8 +139,9 @@ const handleSummarizeAndClassify = async (payload) => {
 
     let result;
     try {
-      const jsonMatch = aiResponseText.match(/\{[\s\S]*\}/);
-      result = JSON.parse(jsonMatch ? jsonMatch[0] : aiResponseText);
+      const safeText = aiResponseText || '';
+      const jsonMatch = safeText.match(/\{[\s\S]*\}/);
+      result = JSON.parse(jsonMatch ? jsonMatch[0] : safeText);
     } catch (parseError) {
       console.error('Failed to parse AI response as JSON. Falling back.', aiResponseText);
       result = {
@@ -229,7 +229,6 @@ const handleAnomalyCheck = async (payload) => {
         },
         body: JSON.stringify({
           model: 'openrouter/free',
-          response_format: { type: 'json_object' },
           messages: [
             { role: 'user', content: prompt }
           ]
@@ -256,8 +255,9 @@ const handleAnomalyCheck = async (payload) => {
 
     let result;
     try {
-      const jsonMatch = aiResponseText.match(/\{[\s\S]*\}/);
-      result = JSON.parse(jsonMatch ? jsonMatch[0] : aiResponseText);
+      const safeText = aiResponseText || '';
+      const jsonMatch = safeText.match(/\{[\s\S]*\}/);
+      result = JSON.parse(jsonMatch ? jsonMatch[0] : safeText);
     } catch (parseError) {
       console.error('Failed to parse anomaly AI response as JSON.', aiResponseText);
       result = { isAnomalous: false };

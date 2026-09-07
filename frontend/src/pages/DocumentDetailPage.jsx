@@ -47,9 +47,35 @@ const DocumentDetailPage = () => {
     };
   }, [previewUrl]);
 
+  const getLocation = () => {
+    return new Promise((resolve) => {
+      if (!navigator.geolocation) {
+        resolve({ lat: null, lng: null });
+        return;
+      }
+      toast.loading('Requesting location for watermark...', { id: 'location-toast' });
+      navigator.geolocation.getCurrentPosition(
+        (position) => {
+          toast.success('Location acquired', { id: 'location-toast' });
+          resolve({
+            lat: position.coords.latitude,
+            lng: position.coords.longitude
+          });
+        },
+        (error) => {
+          console.warn('Geolocation error:', error);
+          toast.error('Location denied. Using IP fallback.', { id: 'location-toast' });
+          resolve({ lat: null, lng: null });
+        },
+        { timeout: 5000 }
+      );
+    });
+  };
+
   const handleDownload = async () => {
     try {
-      const response = await documentApi.downloadDocument(id);
+      const { lat, lng } = await getLocation();
+      const response = await documentApi.downloadDocument(id, lat, lng);
       
       const blob = new Blob([response.data]);
       
@@ -80,7 +106,8 @@ const DocumentDetailPage = () => {
 
   const handlePreview = async () => {
     try {
-      const response = await documentApi.previewDocument(id);
+      const { lat, lng } = await getLocation();
+      const response = await documentApi.previewDocument(id, lat, lng);
       const contentType = response.headers['content-type'] || 'application/pdf';
       const blob = new Blob([response.data], { type: contentType });
       const url = window.URL.createObjectURL(blob) + '#toolbar=0';
